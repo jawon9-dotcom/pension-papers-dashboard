@@ -8,7 +8,12 @@ import {
   filterPapersByYear,
   getDefaultYearTo,
 } from "@/lib/period";
-import { PaperSortOption, sortPapers } from "@/lib/paper-sort";
+import {
+  DEFAULT_PAPER_SORT,
+  getPaperSortLabel,
+  PaperSortState,
+  sortPapers,
+} from "@/lib/paper-sort";
 import { CategoryFilter } from "./CategoryFilter";
 import { OpenAiKeySettings } from "./OpenAiKeySettings";
 import { PeriodFilter } from "./PeriodFilter";
@@ -62,7 +67,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
   const [selectedId, setSelectedId] = useState<string | null>(
     initialPapers[0]?.id ?? null
   );
-  const [sortBy, setSortBy] = useState<PaperSortOption>("newest");
+  const [sort, setSort] = useState<PaperSortState>(DEFAULT_PAPER_SORT);
 
   const loadPapers = useCallback(
     async (refresh = false, period = appliedPeriod) => {
@@ -125,8 +130,8 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
       return true;
     });
 
-    return sortPapers(filtered, sortBy);
-  }, [papersInPeriod, activeCategory, activeSubCategory, sortBy]);
+    return sortPapers(filtered, sort);
+  }, [papersInPeriod, activeCategory, activeSubCategory, sort]);
 
   const selectedPaper = useMemo(() => {
     if (filteredPapers.length === 0) return null;
@@ -262,12 +267,12 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
             onSubCategoryChange={setActiveSubCategory}
             counts={counts}
           />
-          <PaperSortFilter sortBy={sortBy} onSortChange={setSortBy} />
+          <PaperSortFilter sort={sort} onSortChange={setSort} />
           <div className="flex items-center justify-between px-4 py-2">
             <span className="text-xs text-slate-500">
               {loading
                 ? "불러오는 중..."
-                : `${filteredPapers.length}건 · ${appliedPeriod.yearFrom}~${appliedPeriod.yearTo}년 · ${sortBy === "newest" ? "최신순" : "인용순"}`}
+                : `${filteredPapers.length}건 · ${appliedPeriod.yearFrom}~${appliedPeriod.yearTo}년 · ${getPaperSortLabel(sort)}`}
             </span>
           </div>
           {loading ? (

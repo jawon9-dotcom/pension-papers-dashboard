@@ -1,21 +1,31 @@
 "use client";
 
 import {
-  PAPER_SORT_LABELS,
-  PaperSortOption,
+  getPaperSortLabel,
+  PaperSortField,
+  PaperSortState,
+  togglePaperSort,
 } from "@/lib/paper-sort";
 
 interface PaperSortFilterProps {
-  sortBy: PaperSortOption;
-  onSortChange: (sortBy: PaperSortOption) => void;
+  sort: PaperSortState;
+  onSortChange: (sort: PaperSortState) => void;
 }
 
-const SORT_OPTIONS: PaperSortOption[] = ["newest", "citations"];
+const SORT_FIELDS: PaperSortField[] = ["newest", "citations"];
 
-export function PaperSortFilter({
-  sortBy,
-  onSortChange,
-}: PaperSortFilterProps) {
+function getSortButtonLabel(field: PaperSortField, sort: PaperSortState): string {
+  if (field === "newest") {
+    if (sort.field === "newest" && sort.direction === "asc") {
+      return "오래된순";
+    }
+    return "최신순";
+  }
+
+  return "인용순";
+}
+
+export function PaperSortFilter({ sort, onSortChange }: PaperSortFilterProps) {
   return (
     <div className="border-b border-slate-800 px-4 py-2">
       <div className="flex items-center justify-between gap-2">
@@ -23,25 +33,31 @@ export function PaperSortFilter({
           정렬
         </span>
         <div className="flex rounded-lg border border-slate-700 bg-slate-800/50 p-0.5">
-          {SORT_OPTIONS.map((option) => {
-            const active = sortBy === option;
+          {SORT_FIELDS.map((field) => {
+            const active = sort.field === field;
             return (
               <button
-                key={option}
+                key={field}
                 type="button"
-                onClick={() => onSortChange(option)}
+                onClick={() => onSortChange(togglePaperSort(sort, field))}
                 className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
                   active
                     ? "bg-blue-600 text-white"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
+                aria-pressed={active}
               >
-                {PAPER_SORT_LABELS[option]}
+                {getSortButtonLabel(field, sort)}
               </button>
             );
           })}
         </div>
       </div>
+      {sort.field === "newest" && (
+        <p className="mt-2 text-[10px] text-slate-600">
+          {getPaperSortLabel(sort)} · 최신순을 다시 누르면 순서가 바뀝니다
+        </p>
+      )}
     </div>
   );
 }
