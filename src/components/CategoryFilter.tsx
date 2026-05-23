@@ -48,7 +48,7 @@ export function CategoryFilter({
   counts,
 }: CategoryFilterProps) {
   return (
-    <div className="border-b border-slate-800 p-4 space-y-3">
+    <div className="border-b border-slate-800 p-3 space-y-3 sm:p-4">
       <div>
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
           주제 분류
@@ -59,7 +59,7 @@ export function CategoryFilter({
               key={cat}
               type="button"
               onClick={() => onCategoryChange(cat)}
-              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+              className={`min-h-9 rounded-lg px-2.5 py-2 text-xs font-medium transition sm:py-1.5 ${
                 activeCategory === cat
                   ? "bg-blue-600 text-white shadow-sm"
                   : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
@@ -83,7 +83,7 @@ export function CategoryFilter({
                 key={sub}
                 type="button"
                 onClick={() => onSubCategoryChange(sub)}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                className={`min-h-9 rounded-lg px-2.5 py-2 text-xs font-medium transition sm:py-1.5 ${
                   activeSubCategory === sub
                     ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
                     : "bg-slate-800/60 text-slate-400 hover:bg-slate-700 hover:text-slate-200 border border-transparent"

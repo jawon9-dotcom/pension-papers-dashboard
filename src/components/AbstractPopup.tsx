@@ -35,7 +35,7 @@ export function AbstractPopup({ paper, x, y }: AbstractPopupProps) {
   return (
     <div
       ref={ref}
-      className="pointer-events-none fixed z-50 w-[360px] max-h-[280px] overflow-y-auto rounded-xl border border-slate-600/60 bg-slate-800/95 p-4 shadow-2xl backdrop-blur-sm"
+      className="pointer-events-none fixed z-50 w-[calc(100vw-24px)] max-w-[360px] max-h-[280px] overflow-y-auto rounded-xl border border-slate-600/60 bg-slate-800/95 p-4 shadow-2xl backdrop-blur-sm sm:w-[360px]"
       style={{ left: pos.x, top: pos.y }}
       role="tooltip"
     >

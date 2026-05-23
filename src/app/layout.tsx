@@ -18,6 +18,11 @@ export const metadata: Metadata = {
     "글로벌 연기금(Pension Fund) 운용 관련 학술 논문을 기간별로 탐색하고 주제별 분류·요약·원문을 확인하는 대시보드",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

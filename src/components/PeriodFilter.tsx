@@ -22,11 +22,11 @@ export function PeriodFilter({
   const maxYear = getDefaultYearTo() + 1;
 
   return (
-    <div className="border-b border-slate-800 p-4">
+    <div className="border-b border-slate-800 p-3 sm:p-4">
       <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
         검색 기간
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="number"
           min={2000}
@@ -35,7 +35,7 @@ export function PeriodFilter({
           onChange={(e) =>
             onYearFromChange(parseYear(e.target.value, DEFAULT_YEAR_FROM))
           }
-          className="w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+          className="min-h-9 w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-2 text-xs text-slate-200 focus:border-blue-500 focus:outline-none sm:py-1.5"
           aria-label="시작 연도"
         />
         <span className="text-xs text-slate-500">~</span>
@@ -47,14 +47,14 @@ export function PeriodFilter({
           onChange={(e) =>
             onYearToChange(parseYear(e.target.value, getDefaultYearTo()))
           }
-          className="w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
+          className="min-h-9 w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-2 text-xs text-slate-200 focus:border-blue-500 focus:outline-none sm:py-1.5"
           aria-label="종료 연도"
         />
         <button
           type="button"
           onClick={onApply}
           disabled={loading}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-500 disabled:opacity-50"
+          className="min-h-9 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-500 active:bg-blue-400 disabled:opacity-50 sm:py-1.5"
         >
           {loading ? "검색 중..." : "적용"}
         </button>

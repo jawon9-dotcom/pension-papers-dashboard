@@ -40,7 +40,7 @@ export function PaperSortFilter({ sort, onSortChange }: PaperSortFilterProps) {
                 key={field}
                 type="button"
                 onClick={() => onSortChange(togglePaperSort(sort, field))}
-                className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
+                className={`min-h-9 rounded-md px-2.5 py-2 text-[11px] font-medium transition sm:py-1 ${
                   active
                     ? "bg-blue-600 text-white"
                     : "text-slate-400 hover:text-slate-200"

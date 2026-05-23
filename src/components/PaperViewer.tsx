@@ -15,6 +15,7 @@ interface PaperViewerProps {
   paper: Paper | null;
   openaiApiKey?: string | null;
   onPaperUpdate?: (paper: Paper) => void;
+  onBack?: () => void;
 }
 
 const headerColors: Record<string, string> = {
@@ -28,6 +29,7 @@ export function PaperViewer({
   paper,
   openaiApiKey,
   onPaperUpdate,
+  onBack,
 }: PaperViewerProps) {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summarySource, setSummarySource] = useState<string | null>(null);
@@ -93,8 +95,8 @@ export function PaperViewer({
 
   if (!paper) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-12 text-center">
-        <div className="rounded-full bg-slate-800 p-6">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center sm:p-12">
+        <div className="rounded-full bg-slate-800 p-5 sm:p-6">
           <svg
             className="h-12 w-12 text-slate-600"
             fill="none"
@@ -114,7 +116,7 @@ export function PaperViewer({
             논문을 선택해 주세요
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            왼쪽 목록에서 논문을 클릭하면 원문과 AI 요약을 확인할 수 있습니다
+            목록에서 논문을 선택하면 원문과 AI 요약을 확인할 수 있습니다
           </p>
         </div>
       </div>
@@ -132,7 +134,31 @@ export function PaperViewer({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className={`border-b bg-gradient-to-r px-6 py-5 ${headerClass}`}>
+      {onBack && (
+        <div className="shrink-0 border-b border-slate-800 bg-slate-900/50 px-4 py-2.5 lg:hidden">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex min-h-9 items-center gap-1.5 text-sm font-medium text-slate-300 active:text-white"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            목록으로
+          </button>
+        </div>
+      )}
+      <div className={`border-b bg-gradient-to-r px-4 py-4 sm:px-6 sm:py-5 ${headerClass}`}>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <CountryFlag
             countryCode={paper.countryCode}
@@ -167,7 +193,7 @@ export function PaperViewer({
             </>
           )}
         </div>
-        <h2 className="text-xl font-bold leading-tight text-white">
+        <h2 className="text-lg font-bold leading-snug text-white sm:text-xl">
           {displayTitleKo}
         </h2>
         <p className="mt-1 text-sm italic text-slate-400">{paper.title}</p>
@@ -177,8 +203,8 @@ export function PaperViewer({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="border-b border-slate-800 px-6 py-5">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="border-b border-slate-800 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-400">
               AI 핵심 요약
               {hasAiSummary && (
@@ -191,7 +217,7 @@ export function PaperViewer({
               type="button"
               onClick={() => fetchSummary(true)}
               disabled={summaryLoading}
-              className="text-xs text-slate-500 hover:text-blue-400 disabled:opacity-50"
+              className="min-h-9 shrink-0 px-2 text-xs text-slate-500 hover:text-blue-400 disabled:opacity-50"
             >
               {summaryLoading ? "생성 중..." : displaySummary ? "다시 생성" : "요약 생성"}
             </button>
@@ -201,7 +227,7 @@ export function PaperViewer({
             <button
               type="button"
               onClick={() => fetchSummary()}
-              className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm text-blue-300 transition hover:bg-blue-500/20"
+              className="w-full rounded-lg border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm text-blue-300 transition hover:bg-blue-500/20 active:bg-blue-500/25 sm:w-auto"
             >
               AI 요약 생성하기
             </button>
@@ -232,7 +258,7 @@ export function PaperViewer({
           )}
         </div>
 
-        <div className="border-b border-slate-800 px-6 py-5">
+        <div className="border-b border-slate-800 px-4 py-4 sm:px-6 sm:py-5">
           <h3 className="mb-3 text-sm font-semibold text-slate-400">
             초록 (Abstract)
           </h3>
@@ -249,14 +275,14 @@ export function PaperViewer({
           </details>
         </div>
 
-        <div className="px-6 py-5">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="px-4 py-4 sm:px-6 sm:py-5">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-sm font-semibold text-slate-300">논문 원본</h3>
             <a
               href={paper.originalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-500"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-500 active:bg-blue-400 sm:w-auto sm:py-1.5"
             >
               원문 페이지 열기
             </a>
@@ -267,7 +293,7 @@ export function PaperViewer({
               <iframe
                 src={paper.pdfUrl}
                 title={displayTitleKo}
-                className="h-[480px] w-full"
+                className="h-[45vh] min-h-[240px] w-full sm:h-[480px]"
                 sandbox="allow-scripts allow-same-origin allow-popups"
               />
               <p className="border-t border-slate-700 px-4 py-2 text-xs text-slate-500">

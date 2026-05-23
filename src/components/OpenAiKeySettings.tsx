@@ -49,7 +49,7 @@ export function OpenAiKeySettings({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+        className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition sm:py-1.5 ${
           hasApiKey
             ? "border-emerald-700/60 bg-emerald-950/30 text-emerald-300 hover:bg-emerald-950/50"
             : "border-amber-700/60 bg-amber-950/20 text-amber-300 hover:bg-amber-950/40"
@@ -72,7 +72,14 @@ export function OpenAiKeySettings({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[320px] rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
+        <>
+          <button
+            type="button"
+            aria-label="닫기"
+            className="fixed inset-0 z-40 bg-black/60 sm:hidden"
+            onClick={() => setOpen(false)}
+          />
+          <div className="fixed inset-x-4 bottom-4 z-50 max-h-[85vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-4 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[320px] sm:max-h-none">
           <p className="text-xs font-semibold text-slate-200">OpenAI API 키</p>
           <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
             본인 OpenAI 키를 브라우저에만 저장합니다. AI 한글 요약·번역에
@@ -133,7 +140,8 @@ export function OpenAiKeySettings({
               </button>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

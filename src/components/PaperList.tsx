@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Paper,
   MainCategory,
@@ -51,6 +51,15 @@ export function PaperList({
 }: PaperListProps) {
   const [hoveredPaper, setHoveredPaper] = useState<Paper | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setCanHover(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     setMousePos({ x: e.clientX, y: e.clientY });
@@ -67,8 +76,8 @@ export function PaperList({
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden">
       <div
-        className="flex-1 overflow-y-auto p-3 space-y-2"
-        onMouseMove={handleMouseMove}
+        className="flex-1 overflow-y-auto p-2 space-y-2 sm:p-3"
+        onMouseMove={canHover ? handleMouseMove : undefined}
       >
         {papers.map((paper) => {
           const colorKey = CATEGORY_COLORS[paper.category];
@@ -80,9 +89,11 @@ export function PaperList({
               key={paper.id}
               type="button"
               onClick={() => onSelect(paper)}
-              onMouseEnter={() => setHoveredPaper(paper)}
-              onMouseLeave={() => setHoveredPaper(null)}
-              className={`w-full rounded-lg border p-3 text-left transition-all duration-150 hover:scale-[1.01] ${
+              onMouseEnter={canHover ? () => setHoveredPaper(paper) : undefined}
+              onMouseLeave={canHover ? () => setHoveredPaper(null) : undefined}
+              className={`w-full rounded-lg border p-3.5 text-left transition-colors duration-150 active:bg-slate-800/80 sm:p-3 ${
+                canHover ? "hover:scale-[1.01]" : ""
+              } ${
                 isSelected
                   ? `${colors.selected} shadow-md ring-1 ring-inset ring-slate-600`
                   : "border-slate-700/50 bg-slate-800/40 hover:border-slate-600 hover:bg-slate-800/70"
@@ -124,7 +135,7 @@ export function PaperList({
         })}
       </div>
 
-      {hoveredPaper && (
+      {canHover && hoveredPaper && (
         <AbstractPopup paper={hoveredPaper} x={mousePos.x} y={mousePos.y} />
       )}
     </div>
