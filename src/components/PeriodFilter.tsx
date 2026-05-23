@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_YEAR_FROM, getDefaultYearTo } from "@/lib/period";
+import { DEFAULT_YEAR_FROM, getDefaultYearTo, parseYear } from "@/lib/period";
 
 interface PeriodFilterProps {
   yearFrom: number;
@@ -32,7 +32,9 @@ export function PeriodFilter({
           min={2000}
           max={maxYear}
           value={yearFrom}
-          onChange={(e) => onYearFromChange(Number(e.target.value))}
+          onChange={(e) =>
+            onYearFromChange(parseYear(e.target.value, DEFAULT_YEAR_FROM))
+          }
           className="w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
           aria-label="시작 연도"
         />
@@ -42,7 +44,9 @@ export function PeriodFilter({
           min={2000}
           max={maxYear}
           value={yearTo}
-          onChange={(e) => onYearToChange(Number(e.target.value))}
+          onChange={(e) =>
+            onYearToChange(parseYear(e.target.value, getDefaultYearTo()))
+          }
           className="w-20 rounded-lg border border-slate-700 bg-slate-800/80 px-2 py-1.5 text-xs text-slate-200 focus:border-blue-500 focus:outline-none"
           aria-label="종료 연도"
         />

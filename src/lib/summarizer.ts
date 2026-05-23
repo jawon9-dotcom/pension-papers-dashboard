@@ -1,5 +1,10 @@
 import { Paper } from "@/types/paper";
 import {
+  isValidOpenAiKeyFormat,
+  normalizeOpenAiApiKey,
+  parseOpenAiError,
+} from "./openai-key";
+import {
   readSummaryCache,
   writeSummaryCache,
 } from "./cache";
@@ -9,10 +14,22 @@ export interface AiSummaryResult {
   abstractKo: string;
   summaryKo: string;
   hasAiSummary: boolean;
-  source: "openai" | "fallback" | "cache";
+  source: "openai" | "fallback" | "cache" | "error";
+  errorCode?: string;
+  errorMessage?: string;
 }
 
-function fallbackSummary(paper: Paper): AiSummaryResult {
+export class SummarizeError extends Error {
+  constructor(
+    message: string,
+    public code: string
+  ) {
+    super(message);
+    this.name = "SummarizeError";
+  }
+}
+
+function fallbackSummary(paper: Paper, message?: string): AiSummaryResult {
   const sentences = paper.abstract
     .split(/(?<=[.!?])\s+/)
     .filter((s) => s.length > 20)
@@ -27,18 +44,18 @@ function fallbackSummary(paper: Paper): AiSummaryResult {
     summaryKo:
       sentences.length > 0
         ? sentences.join(" ")
-        : "초록 정보가 부족하여 자동 요약을 생성할 수 없습니다. OPENAI_API_KEY를 설정하면 AI 요약을 사용할 수 있습니다.",
+        : message ??
+          "초록 정보가 부족하여 자동 요약을 생성할 수 없습니다.",
     hasAiSummary: false,
     source: "fallback",
   };
 }
 
-async function callOpenAI(paper: Paper): Promise<AiSummaryResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return fallbackSummary(paper);
-
-  const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
-
+async function callOpenAI(
+  paper: Paper,
+  apiKey: string,
+  model = "gpt-4o-mini"
+): Promise<AiSummaryResult> {
   const prompt = `You are a financial research analyst specializing in global pension fund management.
 Analyze the following academic paper and respond ONLY with valid JSON (no markdown fences).
 
@@ -76,13 +93,20 @@ Abstract: ${paper.abstract}`;
   });
 
   if (!res.ok) {
-    console.error("OpenAI API error:", res.status, await res.text());
-    return fallbackSummary(paper);
+    const bodyText = await res.text();
+    const parsed = parseOpenAiError(res.status, bodyText);
+    console.error("OpenAI API error:", res.status, parsed.code);
+    throw new SummarizeError(parsed.message, parsed.code);
   }
 
   const data = await res.json();
   const content = data.choices?.[0]?.message?.content;
-  if (!content) return fallbackSummary(paper);
+  if (!content) {
+    throw new SummarizeError(
+      "OpenAI 응답을 해석하지 못했습니다.",
+      "empty_response"
+    );
+  }
 
   try {
     const parsed = JSON.parse(content) as {
@@ -101,28 +125,50 @@ Abstract: ${paper.abstract}`;
       source: "openai",
     };
   } catch {
-    return fallbackSummary(paper);
+    throw new SummarizeError(
+      "OpenAI 응답 JSON 파싱에 실패했습니다.",
+      "invalid_response"
+    );
   }
 }
 
 export async function generatePaperSummary(
   paper: Paper,
-  force = false
+  options: { force?: boolean; apiKey?: string | null; model?: string } = {}
 ): Promise<AiSummaryResult> {
-  if (!force) {
+  const apiKey = normalizeOpenAiApiKey(options.apiKey);
+
+  if (!apiKey) {
+    return fallbackSummary(
+      paper,
+      "AI 한글 요약을 사용하려면 상단에서 OpenAI API 키를 입력해 주세요."
+    );
+  }
+
+  if (!isValidOpenAiKeyFormat(apiKey)) {
+    throw new SummarizeError(
+      "OpenAI API 키 형식이 올바르지 않습니다.",
+      "invalid_api_key"
+    );
+  }
+
+  if (!options.force) {
     const cached = await readSummaryCache(paper.id);
     if (cached) {
       return { ...cached, hasAiSummary: true, source: "cache" };
     }
   }
 
-  const result = await callOpenAI(paper);
+  const model = options.model ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  const result = await callOpenAI(paper, apiKey, model);
 
-  await writeSummaryCache(paper.id, {
-    titleKo: result.titleKo,
-    abstractKo: result.abstractKo,
-    summaryKo: result.summaryKo,
-  });
+  if (result.source === "openai") {
+    await writeSummaryCache(paper.id, {
+      titleKo: result.titleKo,
+      abstractKo: result.abstractKo,
+      summaryKo: result.summaryKo,
+    });
+  }
 
   return result;
 }

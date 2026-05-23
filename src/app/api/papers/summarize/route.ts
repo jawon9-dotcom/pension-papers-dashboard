@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPaperFromCache } from "@/lib/cache";
-import { generatePaperSummary } from "@/lib/summarizer";
+import { generatePaperSummary, SummarizeError } from "@/lib/summarizer";
 import { Paper } from "@/types/paper";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
       paperId?: string;
       paper?: Paper;
       force?: boolean;
+      openaiApiKey?: string;
     };
 
     let paper: Paper | null = body.paper ?? null;
@@ -26,13 +28,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await generatePaperSummary(paper, body.force ?? false);
+    const result = await generatePaperSummary(paper, {
+      force: body.force ?? false,
+      apiKey: body.openaiApiKey,
+    });
 
     return NextResponse.json({
       paperId: paper.id,
       ...result,
     });
   } catch (error) {
+    if (error instanceof SummarizeError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          errorCode: error.code,
+          source: "error",
+          hasAiSummary: false,
+        },
+        { status: 400 }
+      );
+    }
+
     console.error("Summarize API error:", error);
     return NextResponse.json(
       { error: "AI 요약 생성 중 오류가 발생했습니다." },

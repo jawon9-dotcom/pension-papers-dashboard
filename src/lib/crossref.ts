@@ -2,11 +2,14 @@ import { Paper } from "@/types/paper";
 import { categorizePaper } from "./categorizer";
 import { inferCountryFromText } from "./country";
 import { getSourceSiteLabel } from "./source";
+import { mapWithDelay } from "./fetch-utils";
 import {
+  buildYearFetchPlan,
   clampYearRange,
   DEFAULT_YEAR_FROM,
   FetchPeriod,
   getDefaultYearTo,
+  pickRotatedQueries,
 } from "./period";
 
 const CROSSREF_BASE = "https://api.crossref.org/works";
@@ -66,11 +69,14 @@ function isRelevant(title: string, abstract: string): boolean {
   return core.some((kw) => text.includes(kw));
 }
 
-function getYear(item: CrossRefItem): number {
+function getYear(
+  item: CrossRefItem,
+  yearFrom: number,
+  yearTo: number
+): number {
   const parts = item.published?.["date-parts"]?.[0];
-  const year = parts?.[0] ?? new Date().getFullYear();
-  const maxYear = new Date().getFullYear() + 1;
-  if (year < 2022 || year > maxYear) return 0;
+  const year = parts?.[0] ?? 0;
+  if (year < yearFrom || year > yearTo) return 0;
   return year;
 }
 
@@ -97,7 +103,7 @@ function mapItemToPaper(
   if (!title || !item.DOI) return null;
 
   const abstract = item.abstract ? stripHtml(item.abstract) : "";
-  const year = getYear(item);
+  const year = getYear(item, yearFrom, yearTo);
   if (year === 0 || year < yearFrom || year > yearTo) return null;
   if (!isRelevant(title, abstract)) return null;
 
@@ -130,14 +136,15 @@ function mapItemToPaper(
 
 async function fetchQuery(
   query: string,
-  period: FetchPeriod
+  year: number,
+  rows: number
 ): Promise<CrossRefItem[]> {
   const params = new URLSearchParams({
     query,
-    rows: "15",
+    rows: String(rows),
     sort: "published",
     order: "desc",
-    filter: `from-pub-date:${period.yearFrom},until-pub-date:${period.yearTo},type:journal-article`,
+    filter: `from-pub-date:${year}-01-01,until-pub-date:${year}-12-31,type:journal-article`,
   });
 
   const res = await fetch(`${CROSSREF_BASE}?${params}`, {
@@ -160,26 +167,42 @@ async function fetchQuery(
 export async function fetchLatestPapers(
   period: FetchPeriod = clampYearRange(DEFAULT_YEAR_FROM, getDefaultYearTo())
 ): Promise<Paper[]> {
-  const results = await Promise.all(
-    SEARCH_QUERIES.map((query) => fetchQuery(query, period))
+  const { years, maxTotal, queriesPerYear, perPage } = buildYearFetchPlan(
+    period.yearFrom,
+    period.yearTo,
+    SEARCH_QUERIES.length
   );
-
   const seen = new Set<string>();
   const papers: Paper[] = [];
 
-  for (const batch of results) {
-    for (const item of batch) {
-      const doi = item.DOI;
-      if (!doi || seen.has(doi)) continue;
-      seen.add(doi);
+  for (const [index, year] of years.entries()) {
+    if (papers.length >= maxTotal) break;
 
-      const paper = mapItemToPaper(item, period.yearFrom, period.yearTo);
-      if (paper) papers.push(paper);
+    const queries = pickRotatedQueries(
+      SEARCH_QUERIES,
+      index,
+      queriesPerYear
+    );
+    const results = await mapWithDelay(queries, (query) =>
+      fetchQuery(query, year, perPage)
+    , 150);
+
+    for (const batch of results) {
+      for (const item of batch) {
+        if (papers.length >= maxTotal) break;
+
+        const doi = item.DOI;
+        if (!doi || seen.has(doi)) continue;
+        seen.add(doi);
+
+        const paper = mapItemToPaper(item, period.yearFrom, period.yearTo);
+        if (paper) papers.push(paper);
+      }
     }
   }
 
   papers.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
-  return papers.slice(0, 60);
+  return papers.slice(0, maxTotal);
 }
 
 export interface FetchMeta {

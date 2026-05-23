@@ -66,11 +66,20 @@ export interface PapersCacheEntry {
 
 const PAPERS_TTL_MS = 24 * 60 * 60 * 1000;
 
+function papersCacheKey(yearFrom?: number, yearTo?: number): string {
+  if (yearFrom !== undefined && yearTo !== undefined) {
+    return `papers-${yearFrom}-${yearTo}.json`;
+  }
+  return "papers.json";
+}
+
 export async function getCachedPapers(
   yearFrom?: number,
   yearTo?: number
 ): Promise<PapersCacheEntry | null> {
-  const cached = await readCache<PapersCacheEntry>("papers.json");
+  const cached = await readCache<PapersCacheEntry>(
+    papersCacheKey(yearFrom, yearTo)
+  );
   if (!cached) return null;
 
   if (
@@ -92,7 +101,7 @@ export async function setCachedPapers(
   yearFrom?: number,
   yearTo?: number
 ): Promise<void> {
-  await writeCache("papers.json", {
+  await writeCache(papersCacheKey(yearFrom, yearTo), {
     fetchedAt: new Date().toISOString(),
     papers,
     yearFrom,
@@ -103,6 +112,17 @@ export async function setCachedPapers(
 export async function getPaperFromCache(
   paperId: string
 ): Promise<import("@/types/paper").Paper | null> {
+  for (const [filename, value] of memoryCache.entries()) {
+    if (!filename.startsWith("papers")) continue;
+    const entry = value as PapersCacheEntry;
+    const found = entry.papers?.find((p) => p.id === paperId);
+    if (found) return found;
+  }
+
   const cached = await readCache<PapersCacheEntry>("papers.json");
-  return cached?.papers.find((p) => p.id === paperId) ?? null;
+  if (cached) {
+    return cached.papers.find((p) => p.id === paperId) ?? null;
+  }
+
+  return null;
 }

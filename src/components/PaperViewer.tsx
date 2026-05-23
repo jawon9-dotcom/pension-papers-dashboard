@@ -13,6 +13,7 @@ import { getCountryNameKo, resolveCountryCode } from "@/lib/country";
 
 interface PaperViewerProps {
   paper: Paper | null;
+  openaiApiKey?: string | null;
   onPaperUpdate?: (paper: Paper) => void;
 }
 
@@ -23,7 +24,11 @@ const headerColors: Record<string, string> = {
   violet: "from-violet-600/20 to-transparent border-violet-500/30",
 };
 
-export function PaperViewer({ paper, onPaperUpdate }: PaperViewerProps) {
+export function PaperViewer({
+  paper,
+  openaiApiKey,
+  onPaperUpdate,
+}: PaperViewerProps) {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summarySource, setSummarySource] = useState<string | null>(null);
   const [summaryText, setSummaryText] = useState<string>("");
@@ -36,18 +41,29 @@ export function PaperViewer({ paper, onPaperUpdate }: PaperViewerProps) {
     async (force = false) => {
       if (!paper) return;
 
+      if (!openaiApiKey) {
+        setSummaryRequested(true);
+        setSummarySource("fallback");
+        setSummaryText(
+          "AI 한글 요약을 사용하려면 상단에서 OpenAI API 키를 입력해 주세요."
+        );
+        return;
+      }
+
       setSummaryLoading(true);
       setSummaryRequested(true);
       try {
         const res = await fetch("/api/papers/summarize", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paper, force }),
+          body: JSON.stringify({ paper, force, openaiApiKey }),
         });
 
-        if (!res.ok) throw new Error("요약 생성 실패");
-
         const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error ?? "요약 생성 실패");
+        }
+
         setTitleKo(data.titleKo);
         setAbstractKo(data.abstractKo);
         setSummaryText(data.summaryKo);
@@ -61,13 +77,18 @@ export function PaperViewer({ paper, onPaperUpdate }: PaperViewerProps) {
           summaryKo: data.summaryKo,
           hasAiSummary: data.hasAiSummary,
         });
-      } catch {
+      } catch (error) {
         setSummarySource("error");
+        setSummaryText(
+          error instanceof Error
+            ? error.message
+            : "AI 요약 생성에 실패했습니다. API 키를 확인하거나 잠시 후 다시 시도해 주세요."
+        );
       } finally {
         setSummaryLoading(false);
       }
     },
-    [paper, onPaperUpdate]
+    [paper, openaiApiKey, onPaperUpdate]
   );
 
   if (!paper) {
@@ -198,7 +219,13 @@ export function PaperViewer({ paper, onPaperUpdate }: PaperViewerProps) {
               </p>
               {summarySource === "fallback" && (
                 <p className="mt-2 text-xs text-amber-500">
-                  OPENAI_API_KEY 미설정 — 초록 기반 기본 요약을 표시합니다.
+                  OpenAI API 키가 없어 초록 기반 기본 요약을 표시합니다. 상단에서
+                  키를 입력하면 AI 한글 요약을 사용할 수 있습니다.
+                </p>
+              )}
+              {summarySource === "error" && (
+                <p className="mt-2 text-xs text-red-400">
+                  요약 API 호출에 실패했습니다. 네트워크 또는 API 키 설정을 확인해 주세요.
                 </p>
               )}
             </>

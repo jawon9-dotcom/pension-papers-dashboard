@@ -8,15 +8,18 @@ import {
   DEFAULT_YEAR_FROM,
   filterPapersByYear,
   getDefaultYearTo,
+  parseYear,
 } from "@/lib/period";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function parsePeriod(searchParams: URLSearchParams) {
-  const yearFrom = Number(
-    searchParams.get("yearFrom") ?? DEFAULT_YEAR_FROM
+  const yearFrom = parseYear(
+    searchParams.get("yearFrom"),
+    DEFAULT_YEAR_FROM
   );
-  const yearTo = Number(searchParams.get("yearTo") ?? getDefaultYearTo());
+  const yearTo = parseYear(searchParams.get("yearTo"), getDefaultYearTo());
   return clampYearRange(yearFrom, yearTo);
 }
 

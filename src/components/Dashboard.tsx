@@ -9,9 +9,11 @@ import {
   getDefaultYearTo,
 } from "@/lib/period";
 import { CategoryFilter } from "./CategoryFilter";
+import { OpenAiKeySettings } from "./OpenAiKeySettings";
 import { PeriodFilter } from "./PeriodFilter";
 import { PaperList } from "./PaperList";
 import { PaperViewer } from "./PaperViewer";
+import { useOpenAiApiKey } from "@/hooks/useOpenAiApiKey";
 
 interface PapersMeta {
   source: string;
@@ -28,6 +30,8 @@ interface DashboardProps {
 }
 
 export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
+  const { apiKey, hasApiKey, maskedKey, saveApiKey, clearApiKey } =
+    useOpenAiApiKey();
   const [papers, setPapers] = useState<Paper[]>(initialPapers);
   const [meta, setMeta] = useState<PapersMeta>(initialMeta);
   const [loading, setLoading] = useState(false);
@@ -188,6 +192,12 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <OpenAiKeySettings
+            hasApiKey={hasApiKey}
+            maskedKey={maskedKey}
+            onSave={saveApiKey}
+            onClear={clearApiKey}
+          />
           <button
             type="button"
             onClick={() => loadPapers(true)}
@@ -278,6 +288,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
           <PaperViewer
             key={selectedPaper?.id ?? "empty"}
             paper={selectedPaper}
+            openaiApiKey={apiKey}
             onPaperUpdate={handlePaperUpdate}
           />
         </main>

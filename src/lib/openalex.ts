@@ -6,12 +6,15 @@ import {
   inferCountryFromText,
 } from "./country";
 import { getSourceSiteLabel, enrichPapers } from "./source";
+import { mapWithDelay } from "./fetch-utils";
 import {
-  buildYearFilter,
+  buildYearFetchPlan,
   clampYearRange,
   DEFAULT_YEAR_FROM,
   FetchPeriod,
   getDefaultYearTo,
+  getMaxPapersForPeriod,
+  pickRotatedQueries,
 } from "./period";
 
 const OPENALEX_BASE = "https://api.openalex.org/works";
@@ -137,16 +140,14 @@ function mapWorkToPaper(
   };
 }
 
-function buildFilterQueries(yearFrom: number, yearTo: number): string[] {
-  const yearPart = buildYearFilter(yearFrom, yearTo);
-  return BASE_FILTER_QUERIES.map((q) => `${q},publication_year:${yearPart}`);
-}
-
-async function fetchOpenAlexFilter(filter: string): Promise<OpenAlexWork[]> {
+async function fetchOpenAlexFilter(
+  filter: string,
+  perPage: number
+): Promise<OpenAlexWork[]> {
   const params = new URLSearchParams({
     filter,
     sort: "publication_date:desc",
-    per_page: "15",
+    per_page: String(perPage),
     mailto: MAILTO,
   });
   if (API_KEY) params.set("api_key", API_KEY);
@@ -166,18 +167,38 @@ async function fetchOpenAlexFilter(filter: string): Promise<OpenAlexWork[]> {
 }
 
 async function fetchFromOpenAlex(period: FetchPeriod): Promise<Paper[]> {
-  const filters = buildFilterQueries(period.yearFrom, period.yearTo);
-  const results = await Promise.all(filters.map(fetchOpenAlexFilter));
+  const { years, maxTotal, queriesPerYear, perPage } = buildYearFetchPlan(
+    period.yearFrom,
+    period.yearTo,
+    BASE_FILTER_QUERIES.length
+  );
   const seen = new Set<string>();
   const papers: Paper[] = [];
 
-  for (const batch of results) {
-    for (const work of batch) {
-      const id = work.id.replace("https://openalex.org/", "");
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const paper = mapWorkToPaper(work, period.yearFrom, period.yearTo);
-      if (paper) papers.push(paper);
+  for (const [index, year] of years.entries()) {
+    if (papers.length >= maxTotal) break;
+
+    const queries = pickRotatedQueries(
+      BASE_FILTER_QUERIES,
+      index,
+      queriesPerYear
+    );
+    const filters = queries.map((query) => `${query},publication_year:${year}`);
+    const results = await mapWithDelay(filters, (filter) =>
+      fetchOpenAlexFilter(filter, perPage)
+    );
+
+    for (const batch of results) {
+      for (const work of batch) {
+        if (papers.length >= maxTotal) break;
+
+        const id = work.id.replace("https://openalex.org/", "");
+        if (seen.has(id)) continue;
+        seen.add(id);
+
+        const paper = mapWorkToPaper(work, period.yearFrom, period.yearTo);
+        if (paper) papers.push(paper);
+      }
     }
   }
 
@@ -193,11 +214,14 @@ export async function fetchLatestPapers(
     options?.yearTo ?? getDefaultYearTo()
   );
 
-  const [openalexPapers, crossrefPapers] = await Promise.all([
-    fetchFromOpenAlex(period),
-    fetchFromCrossRef(period),
-  ]);
+  const openalexPapers = await fetchFromOpenAlex(period);
+  const maxTotal = getMaxPapersForPeriod(period.yearFrom, period.yearTo);
 
+  if (openalexPapers.length >= Math.min(maxTotal, 24)) {
+    return enrichPapers(openalexPapers.slice(0, maxTotal));
+  }
+
+  const crossrefPapers = await fetchFromCrossRef(period);
   const seen = new Set<string>();
   const merged: Paper[] = [];
 
@@ -209,7 +233,7 @@ export async function fetchLatestPapers(
   }
 
   merged.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
-  return enrichPapers(merged.slice(0, 60));
+  return enrichPapers(merged.slice(0, maxTotal));
 }
 
 export interface FetchMeta {
