@@ -74,9 +74,9 @@ export function PaperList({
   }
 
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <div
-        className="flex-1 overflow-y-auto p-2 space-y-2 sm:p-3"
+        className="scroll-area flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 space-y-2.5 sm:px-3 sm:py-3 sm:space-y-2"
         onMouseMove={canHover ? handleMouseMove : undefined}
       >
         {papers.map((paper) => {
@@ -91,7 +91,7 @@ export function PaperList({
               onClick={() => onSelect(paper)}
               onMouseEnter={canHover ? () => setHoveredPaper(paper) : undefined}
               onMouseLeave={canHover ? () => setHoveredPaper(null) : undefined}
-              className={`w-full rounded-lg border p-3.5 text-left transition-colors duration-150 active:bg-slate-800/80 sm:p-3 ${
+              className={`w-full rounded-lg border p-4 text-left transition-colors duration-150 active:bg-slate-800/80 sm:p-3 ${
                 canHover ? "hover:scale-[1.01]" : ""
               } ${
                 isSelected
@@ -124,10 +124,10 @@ export function PaperList({
                 />
                 <span className="text-[10px] text-slate-500">{paper.year}</span>
               </div>
-              <h3 className="text-sm font-semibold leading-snug text-slate-100">
+              <h3 className="text-[15px] font-semibold leading-snug text-slate-100 sm:text-sm">
                 {paper.titleKo}
               </h3>
-              <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+              <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-500 sm:mt-1 sm:line-clamp-1 sm:text-xs">
                 {paper.authors.join(", ")}
               </p>
             </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Paper, MainCategory, SubCategory } from "@/types/paper";
+import { Paper, MainCategory, SubCategory, CATEGORY_LABELS } from "@/types/paper";
 import {
   clampYearRange,
   DEFAULT_YEAR_FROM,
@@ -69,6 +69,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
   );
   const [sort, setSort] = useState<PaperSortState>(DEFAULT_PAPER_SORT);
   const [mobilePanel, setMobilePanel] = useState<"list" | "detail">("list");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const loadPapers = useCallback(
     async (refresh = false, period = appliedPeriod) => {
@@ -274,29 +275,57 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
             mobilePanel === "detail" ? "hidden lg:flex" : "flex flex-1"
           }`}
         >
-          <PeriodFilter
-            yearFrom={yearFrom}
-            yearTo={yearTo}
-            onYearFromChange={setYearFrom}
-            onYearToChange={setYearTo}
-            onApply={handleApplyPeriod}
-            loading={loading || refreshing}
-          />
-          <CategoryFilter
-            activeCategory={activeCategory}
-            activeSubCategory={activeSubCategory}
-            onCategoryChange={handleCategoryChange}
-            onSubCategoryChange={setActiveSubCategory}
-            counts={counts}
-          />
-          <PaperSortFilter sort={sort} onSortChange={setSort} />
-          <div className="flex items-center justify-between px-4 py-2">
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen((open) => !open)}
+            className="flex min-h-11 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/60 px-4 py-2.5 text-left lg:hidden"
+            aria-expanded={mobileFiltersOpen}
+          >
+            <span className="text-sm font-medium text-slate-200">
+              {mobileFiltersOpen ? "필터 접기" : "필터 · 검색 조건"}
+            </span>
+            <span className="text-xs text-slate-500">
+              {appliedPeriod.yearFrom}~{appliedPeriod.yearTo}
+              {activeCategory !== "all" &&
+                ` · ${CATEGORY_LABELS[activeCategory]}`}
+            </span>
+          </button>
+
+          <div
+            className={`shrink-0 overflow-y-auto lg:block ${
+              mobileFiltersOpen ? "max-h-[45dvh] border-b border-slate-800 lg:max-h-none" : "hidden lg:block"
+            }`}
+          >
+            <PeriodFilter
+              yearFrom={yearFrom}
+              yearTo={yearTo}
+              onYearFromChange={setYearFrom}
+              onYearToChange={setYearTo}
+              onApply={handleApplyPeriod}
+              loading={loading || refreshing}
+            />
+            <CategoryFilter
+              activeCategory={activeCategory}
+              activeSubCategory={activeSubCategory}
+              onCategoryChange={handleCategoryChange}
+              onSubCategoryChange={setActiveSubCategory}
+              counts={counts}
+            />
+            <PaperSortFilter sort={sort} onSortChange={setSort} />
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/40 px-4 py-2.5">
+            <span className="text-sm font-medium text-slate-300">
+              논문 목록
+            </span>
             <span className="text-xs text-slate-500">
               {loading
                 ? "불러오는 중..."
-                : `${filteredPapers.length}건 · ${appliedPeriod.yearFrom}~${appliedPeriod.yearTo}년 · ${getPaperSortLabel(sort)}`}
+                : `${filteredPapers.length}건 · ${getPaperSortLabel(sort)}`}
             </span>
           </div>
+
+          <div className="flex min-h-[55dvh] flex-1 flex-col overflow-hidden lg:min-h-0">
           {loading ? (
             <div className="flex flex-1 items-center justify-center p-8">
               <div className="flex flex-col items-center gap-3">
@@ -315,6 +344,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
               activeSubCategory={activeSubCategory}
             />
           )}
+          </div>
         </aside>
 
         <main
