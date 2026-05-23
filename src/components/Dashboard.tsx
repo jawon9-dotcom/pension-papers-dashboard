@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Paper, MainCategory, SubCategory, CATEGORY_LABELS } from "@/types/paper";
+import { CitationGraphNode } from "@/types/citation-graph";
 import {
   clampYearRange,
   DEFAULT_YEAR_FROM,
@@ -175,6 +176,17 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
   const handleSelectPaper = (paper: Paper) => {
     setSelectedId(paper.id);
     setMobilePanel("detail");
+  };
+
+  const handleSelectConnected = (node: CitationGraphNode) => {
+    const found = papers.find(
+      (p) => p.id === node.id || p.openAlexId === node.id
+    );
+    if (found) {
+      handleSelectPaper(found);
+      return;
+    }
+    window.open(node.originalUrl, "_blank", "noopener,noreferrer");
   };
 
   const formatFetchedAt = (iso: string) => {
@@ -358,6 +370,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
             openaiApiKey={apiKey}
             onPaperUpdate={handlePaperUpdate}
             onBack={() => setMobilePanel("list")}
+            onSelectConnected={handleSelectConnected}
           />
         </main>
       </div>

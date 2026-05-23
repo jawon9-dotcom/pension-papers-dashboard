@@ -9,6 +9,8 @@ import {
 } from "@/types/paper";
 import { CountryFlag } from "./CountryFlag";
 import { PaperMetaBadges } from "./PaperMetaBadges";
+import { ConnectedPapersPanel } from "./ConnectedPapersPanel";
+import { CitationGraphNode } from "@/types/citation-graph";
 import { getCountryNameKo, resolveCountryCode } from "@/lib/country";
 
 interface PaperViewerProps {
@@ -16,6 +18,7 @@ interface PaperViewerProps {
   openaiApiKey?: string | null;
   onPaperUpdate?: (paper: Paper) => void;
   onBack?: () => void;
+  onSelectConnected?: (node: CitationGraphNode) => void;
 }
 
 const headerColors: Record<string, string> = {
@@ -30,6 +33,7 @@ export function PaperViewer({
   openaiApiKey,
   onPaperUpdate,
   onBack,
+  onSelectConnected,
 }: PaperViewerProps) {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summarySource, setSummarySource] = useState<string | null>(null);
@@ -274,6 +278,11 @@ export function PaperViewer({
             </p>
           </details>
         </div>
+
+        <ConnectedPapersPanel
+          paper={paper}
+          onSelectNode={onSelectConnected}
+        />
 
         <div className="px-4 py-4 sm:px-6 sm:py-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
