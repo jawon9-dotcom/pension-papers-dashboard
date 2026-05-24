@@ -1,6 +1,36 @@
-export const PERFORMANCE_NEWS_MAX = 25;
+import { Paper } from "@/types/paper";
+
+export const PERFORMANCE_NEWS_MAX = 30;
 export const PERFORMANCE_NEWS_GLOBAL_RATIO = 4;
 export const PERFORMANCE_NEWS_KOREA_RATIO = 1;
+export const MAX_PERFORMANCE_NEWS_PER_FUND = 2;
+
+export const GLOBAL_PENSION_FUND_NAMES = [
+  "calpers",
+  "calstrs",
+  "cppib",
+  "cdpq",
+  "otpp",
+  "ontario teachers",
+  "gpif",
+  "nbim",
+  "australiansuper",
+  "nz super",
+  "florida sba",
+  "texas teachers",
+  "new york state common",
+  "nycers",
+  "psers",
+  "apg",
+  "pggm",
+  "abp",
+  "kic",
+  "temasek",
+  "gic",
+  "public pension fund",
+  "sovereign pension",
+  "global pension fund",
+];
 
 export const PERFORMANCE_EVALUATION_NEWS_SEARCHES = [
   "pension fund investment performance",
@@ -27,14 +57,15 @@ export const PERFORMANCE_EVALUATION_NEWS_SEARCHES = [
   "sovereign pension fund return",
   "institutional pension performance benchmark",
   "public pension fund annual report returns",
+  "teachers retirement system return",
+  "state pension fund investment return",
+  "pension fund posts return",
   "국민연금 수익률",
   "국민연금 운용성과",
   "국민연금 성과평가",
   "국민연금 기금성과",
-  "공적연금 수익률",
   "national pension service korea return",
   "NPS korea fund performance",
-  "korea national pension fund return",
 ];
 
 export const PERFORMANCE_GLOBAL_GOOGLE_RSS_SEARCHES = [
@@ -54,6 +85,10 @@ export const PERFORMANCE_GLOBAL_GOOGLE_RSS_SEARCHES = [
   { query: "sovereign+pension+fund+return", hl: "en-GB", gl: "GB", ceid: "GB:en" },
   { query: "institutional+pension+performance+benchmark", hl: "en-US", gl: "US", ceid: "US:en" },
   { query: "public+pension+fund+annual+return", hl: "en-US", gl: "US", ceid: "US:en" },
+  { query: "teachers+retirement+system+investment+return", hl: "en-US", gl: "US", ceid: "US:en" },
+  { query: "state+pension+fund+returns", hl: "en-US", gl: "US", ceid: "US:en" },
+  { query: "pension+fund+posts+return", hl: "en-US", gl: "US", ceid: "US:en" },
+  { query: "pension+fund+investment+results", hl: "en-GB", gl: "GB", ceid: "GB:en" },
 ];
 
 export const PERFORMANCE_KOREA_GOOGLE_RSS_SEARCHES = [
@@ -115,6 +150,26 @@ const PERFORMANCE_SIGNAL_TERMS = [
   "운용 실적",
 ];
 
+const RETURN_SIGNAL_TERMS = [
+  "return",
+  "returns",
+  "posted",
+  "gained",
+  "lost",
+  "percent",
+  "annual",
+  "benchmark",
+  "outperformed",
+  "underperformed",
+  "investment results",
+  "investment performance",
+  "수익률",
+  "운용성과",
+  "성과",
+  "실적",
+  "벤치마크",
+];
+
 const INSTITUTIONAL_PENSION_CONTEXT_TERMS = [
   "pension fund",
   "public pension",
@@ -122,21 +177,11 @@ const INSTITUTIONAL_PENSION_CONTEXT_TERMS = [
   "sovereign pension",
   "superannuation fund",
   "provident fund",
-  "calpers",
-  "calstrs",
-  "cppib",
-  "cdpq",
-  "otpp",
-  "ontario teachers",
-  "gpif",
-  "nbim",
-  "australiansuper",
-  "nz super",
+  ...GLOBAL_PENSION_FUND_NAMES,
   "asset owner",
   "institutional investor",
   "국민연금",
   "공적연금",
-  "연기금",
 ];
 
 export function isExcludedRetirementPensionNews(
@@ -159,6 +204,40 @@ export function hasPerformanceEvaluationNewsSignal(
   );
 }
 
+export function mentionsGlobalPensionFund(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return GLOBAL_PENSION_FUND_NAMES.some((term) => normalized.includes(term));
+}
+
+function hasReturnOrPerformanceLooseSignal(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return (
+    RETURN_SIGNAL_TERMS.some((term) => normalized.includes(term)) ||
+    hasPerformanceEvaluationNewsSignal("", normalized)
+  );
+}
+
+export function getPerformanceNewsFundKey(title: string, description: string): string {
+  const text = normalizeFundLookupText(`${title} ${description}`);
+
+  if (text.includes("국민연금") || text.includes("national pension service")) {
+    return "nps-korea";
+  }
+
+  for (const fund of GLOBAL_PENSION_FUND_NAMES) {
+    if (text.includes(fund)) return fund;
+  }
+
+  if (text.includes("public pension")) return "public-pension";
+  if (text.includes("pension fund")) return "pension-fund";
+
+  return normalizeFundLookupText(title).slice(0, 48) || "general";
+}
+
+function normalizeFundLookupText(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export function isPerformanceEvaluationNewsCandidate(
   title: string,
   description: string
@@ -168,6 +247,14 @@ export function isPerformanceEvaluationNewsCandidate(
   }
 
   const text = `${title} ${description}`.toLowerCase();
+
+  if (isGlobalInstitutionalPensionPerformanceNews(title, description)) {
+    return true;
+  }
+
+  if (mentionsGlobalPensionFund(text) && hasReturnOrPerformanceLooseSignal(text)) {
+    return true;
+  }
 
   if (!hasPerformanceEvaluationNewsSignal(title, text)) return false;
 
@@ -181,25 +268,26 @@ export function isGlobalInstitutionalPensionPerformanceNews(
   const text = `${title} ${description}`.toLowerCase();
   if (isExcludedRetirementPensionNews(title, description)) return false;
 
-  const globalFundTerms = [
-    "calpers",
-    "calstrs",
-    "cppib",
-    "cdpq",
-    "otpp",
-    "ontario teachers",
-    "gpif",
-    "nbim",
-    "australiansuper",
-    "nz super",
-    "public pension fund",
-    "global pension",
-    "sovereign pension",
-    "sovereign wealth",
-  ];
-
   return (
-    hasPerformanceEvaluationNewsSignal(title, text) &&
-    globalFundTerms.some((term) => text.includes(term))
+    mentionsGlobalPensionFund(text) &&
+    hasReturnOrPerformanceLooseSignal(text)
   );
+}
+
+export function diversifyPerformanceNewsByFund<T extends Paper>(
+  papers: T[],
+  maxPerFund = MAX_PERFORMANCE_NEWS_PER_FUND
+): T[] {
+  const fundCounts = new Map<string, number>();
+  const result: T[] = [];
+
+  for (const paper of papers) {
+    const fundKey = getPerformanceNewsFundKey(paper.title, paper.abstract);
+    const count = fundCounts.get(fundKey) ?? 0;
+    if (count >= maxPerFund) continue;
+    fundCounts.set(fundKey, count + 1);
+    result.push(paper);
+  }
+
+  return result;
 }

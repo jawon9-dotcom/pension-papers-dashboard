@@ -37,6 +37,14 @@ export function togglePaperSort(
   return { field, direction: "desc" };
 }
 
+export function getNewsPublishedMs(paper: Paper): number {
+  if (paper.publishedAt) {
+    const time = new Date(paper.publishedAt).getTime();
+    if (Number.isFinite(time)) return time;
+  }
+  return paper.year * 31_536_000_000;
+}
+
 function getNewsRankingScore(paper: Paper): number {
   return paper.popularityScore ?? 0;
 }
@@ -72,10 +80,24 @@ function compareAcademicPapers(
   );
 }
 
-function compareNewsArticles(a: Paper, b: Paper): number {
+function compareNewsArticles(
+  a: Paper,
+  b: Paper,
+  sort: PaperSortState
+): number {
+  if (sort.field === "newest") {
+    const timeDiff = getNewsPublishedMs(b) - getNewsPublishedMs(a);
+    const directed = sort.direction === "desc" ? timeDiff : -timeDiff;
+    return (
+      directed ||
+      getNewsRankingScore(b) - getNewsRankingScore(a) ||
+      a.title.localeCompare(b.title)
+    );
+  }
+
   return (
     getNewsRankingScore(b) - getNewsRankingScore(a) ||
-    b.year - a.year ||
+    getNewsPublishedMs(b) - getNewsPublishedMs(a) ||
     a.title.localeCompare(b.title)
   );
 }
@@ -88,7 +110,7 @@ export function sortPapers(papers: Paper[], sort: PaperSortState): Paper[] {
     const bNews = b.isNewsArticle === true;
 
     if (aNews && bNews) {
-      return compareNewsArticles(a, b);
+      return compareNewsArticles(a, b, sort);
     }
 
     if (aNews !== bNews) {

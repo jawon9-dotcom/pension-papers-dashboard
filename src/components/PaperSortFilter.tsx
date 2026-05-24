@@ -60,7 +60,7 @@ export function PaperSortFilter({ sort, onSortChange }: PaperSortFilterProps) {
       )}
       {sort.field === "newest" && (
         <p className="mt-2 text-[10px] text-slate-600">
-          {getPaperSortLabel(sort)} · 최신순을 다시 누르면 순서가 바뀝니다
+          {getPaperSortLabel(sort)} · 뉴스는 게시일 기준, 논문은 발행연도 기준으로 정렬됩니다
         </p>
       )}
     </div>

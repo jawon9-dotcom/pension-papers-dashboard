@@ -1,6 +1,7 @@
 import { Paper, MainCategory, SubCategory } from "@/types/paper";
 import { inferCountryFromText } from "./country";
-import { normalizePaperTitle } from "./deduplicate-papers";
+import { normalizePaperTitle, deduplicateSimilarNews } from "./deduplicate-papers";
+import { getNewsPublishedMs } from "./paper-sort";
 import { getSourceSiteLabel } from "./source";
 import { FetchPeriod, MAX_KOREA_DOMESTIC_NEWS, TPA_NEWS_MAX } from "./period";
 import { hasTrueTpaSignal } from "./relevance";
@@ -34,6 +35,7 @@ import {
   isExcludedRetirementPensionNews,
   isGlobalInstitutionalPensionPerformanceNews,
   isPerformanceEvaluationNewsCandidate,
+  diversifyPerformanceNewsByFund,
 } from "./performance-evaluation-news";
 import { isServerlessEnv } from "./server-env";
 
@@ -998,19 +1000,26 @@ function compareNewsByTrustAndRecency(a: Paper, b: Paper): number {
 
 function dedupeNewsArticles(papers: Paper[]): Paper[] {
   const seenUrls = new Set<string>();
-  const seenTitles = new Set<string>();
   const merged: Paper[] = [];
 
   for (const paper of papers) {
     const urlKey = paper.originalUrl.toLowerCase();
-    const titleKey = paper.title.toLowerCase();
-    if (seenUrls.has(urlKey) || seenTitles.has(titleKey)) continue;
+    if (seenUrls.has(urlKey)) continue;
     seenUrls.add(urlKey);
-    seenTitles.add(titleKey);
     merged.push(paper);
   }
 
-  return merged;
+  const uniqueByTitle = deduplicateSimilarNews(merged, (current, candidate) => {
+    const recencyDiff = getNewsPublishedMs(candidate) - getNewsPublishedMs(current);
+    if (recencyDiff !== 0) {
+      return recencyDiff > 0 ? candidate : current;
+    }
+    return (candidate.popularityScore ?? 0) >= (current.popularityScore ?? 0)
+      ? candidate
+      : current;
+  });
+
+  return uniqueByTitle;
 }
 
 const PERFORMANCE_NEWS_CATEGORY_OPTIONS = {
@@ -1206,14 +1215,11 @@ function mergePerformanceEvaluationNews(papers: Paper[]): Paper[] {
   const koreaPick = koreaDomestic.slice(0, koreaSlots);
   const globalPick = globalNews.slice(0, globalSlots);
 
-  const combined = [...globalPick, ...koreaPick];
+  let combined = diversifyPerformanceNewsByFund([...globalPick, ...koreaPick]);
   const pickedUrls = new Set(combined.map((paper) => paper.originalUrl.toLowerCase()));
 
   if (combined.length < PERFORMANCE_NEWS_MAX) {
-    for (const paper of [
-      ...globalNews.slice(globalPick.length),
-      ...koreaDomestic.slice(koreaPick.length),
-    ]) {
+    for (const paper of globalNews.slice(globalPick.length)) {
       if (combined.length >= PERFORMANCE_NEWS_MAX) break;
       if (isExcludedRetirementPensionNews(paper.title, paper.abstract)) continue;
       const urlKey = paper.originalUrl.toLowerCase();
@@ -1223,6 +1229,25 @@ function mergePerformanceEvaluationNews(papers: Paper[]): Paper[] {
     }
   }
 
+  if (combined.length < PERFORMANCE_NEWS_MAX) {
+    for (const paper of koreaDomestic.slice(koreaPick.length)) {
+      if (combined.length >= PERFORMANCE_NEWS_MAX) break;
+      if (isExcludedRetirementPensionNews(paper.title, paper.abstract)) continue;
+      const urlKey = paper.originalUrl.toLowerCase();
+      if (pickedUrls.has(urlKey)) continue;
+      pickedUrls.add(urlKey);
+      combined.push(paper);
+    }
+  }
+
+  combined = deduplicateSimilarNews(combined, (current, candidate) => {
+    const recencyDiff = getNewsPublishedMs(candidate) - getNewsPublishedMs(current);
+    if (recencyDiff !== 0) {
+      return recencyDiff > 0 ? candidate : current;
+    }
+    return comparePerformanceNews(candidate, current) < 0 ? candidate : current;
+  });
+  combined = diversifyPerformanceNewsByFund(combined);
   combined.sort(comparePerformanceNews);
   return combined.slice(0, PERFORMANCE_NEWS_MAX);
 }
