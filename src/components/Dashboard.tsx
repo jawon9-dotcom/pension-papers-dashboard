@@ -194,31 +194,6 @@ export function Dashboard({
 
   const listInlineSubLabels = getCategoryInlineSubLabels(activeCategory);
 
-  const categoryContentCounts = useMemo(() => {
-    const empty = () => ({ papers: 0, news: 0 });
-    const result: Record<MainCategory, { papers: number; news: number }> = {
-      "asset-allocation": empty(),
-      "asset-management": empty(),
-      "risk-management": empty(),
-      "performance-evaluation": empty(),
-    };
-
-    papersInPeriod.forEach((paper) => {
-      if (paper.isNewsArticle) {
-        result[paper.category].news++;
-      } else {
-        result[paper.category].papers++;
-      }
-    });
-
-    return result;
-  }, [papersInPeriod]);
-
-  const getCategoryContentMeta = (category: MainCategory) => {
-    const { papers, news } = categoryContentCounts[category];
-    return `논문 ${papers} · 뉴스 ${news}`;
-  };
-
   const counts = useMemo(() => {
     const result: Record<MainCategory | "all", number> = {
       all: papersInPeriod.length,
@@ -364,38 +339,34 @@ export function Dashboard({
               label={CATEGORY_LABELS["asset-allocation"]}
               subLabels={getCategoryInlineSubLabels("asset-allocation") ?? undefined}
               value={counts["asset-allocation"]}
-              meta={getCategoryContentMeta("asset-allocation")}
               color="text-emerald-400"
               active={activeCategory === "asset-allocation"}
-              activeClass="border-emerald-500/50 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+              activeClass="border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/20"
               onClick={() => handleStatCategoryClick("asset-allocation")}
             />
             <Stat
               label={CATEGORY_LABELS["asset-management"]}
               subLabels={getCategoryInlineSubLabels("asset-management") ?? undefined}
               value={counts["asset-management"]}
-              meta={getCategoryContentMeta("asset-management")}
               color="text-blue-400"
               active={activeCategory === "asset-management"}
-              activeClass="border-blue-500/50 bg-blue-500/10 ring-1 ring-blue-500/30"
+              activeClass="border-blue-400 bg-blue-500/25 ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/20"
               onClick={() => handleStatCategoryClick("asset-management")}
             />
             <Stat
               label={CATEGORY_LABELS["risk-management"]}
               value={counts["risk-management"]}
-              meta={getCategoryContentMeta("risk-management")}
               color="text-amber-400"
               active={activeCategory === "risk-management"}
-              activeClass="border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/30"
+              activeClass="border-amber-400 bg-amber-500/25 ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/20"
               onClick={() => handleStatCategoryClick("risk-management")}
             />
             <Stat
               label={CATEGORY_LABELS["performance-evaluation"]}
               value={counts["performance-evaluation"]}
-              meta={getCategoryContentMeta("performance-evaluation")}
               color="text-violet-400"
               active={activeCategory === "performance-evaluation"}
-              activeClass="border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/30"
+              activeClass="border-violet-400 bg-violet-500/25 ring-2 ring-violet-500/50 shadow-lg shadow-violet-500/20"
               onClick={() => handleStatCategoryClick("performance-evaluation")}
             />
           </div>
@@ -407,42 +378,38 @@ export function Dashboard({
           label={CATEGORY_LABELS["asset-allocation"]}
           subLabels={getCategoryInlineSubLabels("asset-allocation") ?? undefined}
           value={counts["asset-allocation"]}
-          meta={getCategoryContentMeta("asset-allocation")}
           color="text-emerald-400"
           compact
           active={activeCategory === "asset-allocation"}
-          activeClass="border-emerald-500/50 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+          activeClass="border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/20"
           onClick={() => handleStatCategoryClick("asset-allocation")}
         />
         <Stat
           label={CATEGORY_LABELS["asset-management"]}
           subLabels={getCategoryInlineSubLabels("asset-management") ?? undefined}
           value={counts["asset-management"]}
-          meta={getCategoryContentMeta("asset-management")}
           color="text-blue-400"
           compact
           active={activeCategory === "asset-management"}
-          activeClass="border-blue-500/50 bg-blue-500/10 ring-1 ring-blue-500/30"
+          activeClass="border-blue-400 bg-blue-500/25 ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/20"
           onClick={() => handleStatCategoryClick("asset-management")}
         />
         <Stat
           label={CATEGORY_LABELS["risk-management"]}
           value={counts["risk-management"]}
-          meta={getCategoryContentMeta("risk-management")}
           color="text-amber-400"
           compact
           active={activeCategory === "risk-management"}
-          activeClass="border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/30"
+          activeClass="border-amber-400 bg-amber-500/25 ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/20"
           onClick={() => handleStatCategoryClick("risk-management")}
         />
         <Stat
           label={CATEGORY_LABELS["performance-evaluation"]}
           value={counts["performance-evaluation"]}
-          meta={getCategoryContentMeta("performance-evaluation")}
           color="text-violet-400"
           compact
           active={activeCategory === "performance-evaluation"}
-          activeClass="border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/30"
+          activeClass="border-violet-400 bg-violet-500/25 ring-2 ring-violet-500/50 shadow-lg shadow-violet-500/20"
           onClick={() => handleStatCategoryClick("performance-evaluation")}
         />
       </div>
@@ -583,7 +550,6 @@ function Stat({
   label,
   value,
   color,
-  meta,
   subLabels,
   compact = false,
   active = false,
@@ -593,7 +559,6 @@ function Stat({
   label: string;
   value: number;
   color: string;
-  meta?: string;
   subLabels?: string;
   compact?: boolean;
   active?: boolean;
@@ -601,8 +566,8 @@ function Stat({
   onClick?: () => void;
 }) {
   const baseClass = compact
-    ? "shrink-0 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-center transition hover:border-slate-600 hover:bg-slate-800/80"
-    : "rounded-lg border border-transparent px-2 py-1 text-center transition hover:bg-slate-800/60";
+    ? "shrink-0 rounded-lg border border-slate-700/80 bg-slate-900/60 px-3 py-2 text-center transition duration-150 hover:border-slate-600 hover:bg-slate-800/80"
+    : "rounded-lg border border-slate-700/80 bg-slate-900/50 px-3 py-2 text-center transition duration-150 hover:border-slate-600 hover:bg-slate-800/80";
 
   const content = (
     <>
@@ -610,18 +575,19 @@ function Stat({
         {value}
       </p>
       <div className="flex flex-wrap items-baseline justify-center gap-x-1">
-        <span className="text-[10px] text-slate-500">{label}</span>
+        <span
+          className={`text-[10px] ${active ? "font-semibold text-slate-300" : "text-slate-500"}`}
+        >
+          {label}
+        </span>
         {subLabels && (
-          <span className="text-[9px] text-slate-600 sm:text-[10px]">
+          <span
+            className={`text-[9px] sm:text-[10px] ${active ? "text-slate-400" : "text-slate-600"}`}
+          >
             {subLabels}
           </span>
         )}
       </div>
-      {meta && (
-        <p className="mt-0.5 text-[9px] leading-tight text-slate-600 sm:text-[10px]">
-          {meta}
-        </p>
-      )}
     </>
   );
 
@@ -634,7 +600,7 @@ function Stat({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`${baseClass} ${active ? activeClass : ""}`}
+      className={`${baseClass} ${active ? `${activeClass} scale-[1.03]` : ""}`}
     >
       {content}
     </button>
