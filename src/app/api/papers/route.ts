@@ -12,7 +12,7 @@ import {
 } from "@/lib/period";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function parsePeriod(searchParams: URLSearchParams) {
   const yearFrom = parseYear(
@@ -80,11 +80,20 @@ export async function GET(request: NextRequest) {
     await setCachedPapers(papers, period.yearFrom, period.yearTo);
 
     const hasOpenAlex = papers.some((p) => p.openAlexId?.startsWith("W"));
+    const hasCrossRef = papers.some(
+      (p) => p.openAlexId && !p.openAlexId.startsWith("W")
+    );
+    const source =
+      hasOpenAlex && hasCrossRef
+        ? "mixed"
+        : hasOpenAlex
+          ? "openalex"
+          : "crossref";
 
     return NextResponse.json({
       papers,
       meta: {
-        source: hasOpenAlex ? "openalex" : "crossref",
+        source,
         count: papers.length,
         fetchedAt: new Date().toISOString(),
         openAlexEnabled: hasOpenAlex,

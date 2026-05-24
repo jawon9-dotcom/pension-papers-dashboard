@@ -11,31 +11,90 @@ import {
   getDefaultYearTo,
   pickRotatedQueries,
 } from "./period";
+import { isPaperRelevant, RelevanceMode } from "./relevance";
 
 const CROSSREF_BASE = "https://api.crossref.org/works";
 const CONTACT_EMAIL =
   process.env.OPENALEX_EMAIL ?? "pension-dashboard@example.com";
 
-const SEARCH_QUERIES = [
-  "pension fund asset allocation",
-  "pension fund investment strategy",
-  "pension fund equity portfolio",
-  "pension fund fixed income bond",
-  "pension fund private equity alternative",
-  "pension fund risk management",
-  "pension fund performance attribution",
-  "defined benefit pension liability driven investment",
-  "public pension fund governance",
-  "institutional pension portfolio management",
-  "pension fund white paper",
-  "retirement plan investment policy statement",
-  "pension industry research report",
-  "asset owner pension strategy",
-  "pension fund annual investment report",
-  "sovereign pension fund portfolio",
-  "pension fund strategic asset allocation",
-  "pension fund reference portfolio",
+interface CrossRefQuerySpec {
+  query: string;
+  mode: RelevanceMode;
+}
+
+function interleaveCrossRefQueries(
+  specs: CrossRefQuerySpec[]
+): CrossRefQuerySpec[] {
+  const academic = specs.filter((spec) => spec.mode === "default");
+  const industry = specs.filter((spec) => spec.mode === "industry");
+  const tpa = specs.filter((spec) => spec.mode === "tpa");
+  const interleaved: CrossRefQuerySpec[] = [];
+  const maxLen = Math.max(academic.length, industry.length, tpa.length);
+
+  for (let index = 0; index < maxLen; index++) {
+    if (academic[index]) interleaved.push(academic[index]);
+    if (industry[index]) interleaved.push(industry[index]);
+    if (tpa[index]) interleaved.push(tpa[index]);
+  }
+
+  return interleaved;
+}
+
+const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
+  { query: "pension fund asset allocation", mode: "default" },
+  { query: "pension fund investment strategy", mode: "default" },
+  { query: "pension fund equity portfolio", mode: "default" },
+  { query: "pension fund fixed income bond", mode: "default" },
+  { query: "pension fund private equity alternative", mode: "default" },
+  { query: "pension fund risk management", mode: "default" },
+  { query: "pension fund performance attribution", mode: "default" },
+  {
+    query: "defined benefit pension liability driven investment",
+    mode: "default",
+  },
+  { query: "public pension fund governance", mode: "default" },
+  { query: "institutional pension portfolio management", mode: "default" },
+  { query: "pension fund white paper", mode: "industry" },
+  { query: "pension industry research report", mode: "industry" },
+  { query: "retirement plan investment policy statement", mode: "industry" },
+  { query: "asset owner pension strategy", mode: "industry" },
+  { query: "pension fund annual investment report", mode: "industry" },
+  { query: "sovereign pension fund portfolio", mode: "industry" },
+  { query: "pension fund strategic asset allocation", mode: "default" },
+  { query: "pension fund reference portfolio", mode: "tpa" },
+  { query: "total portfolio approach pension", mode: "tpa" },
+  { query: "total portfolio approach asset owner", mode: "tpa" },
+  { query: "reference portfolio institutional investor", mode: "tpa" },
+  { query: "reference portfolio white paper", mode: "tpa" },
+]);
+
+const CORE_CROSSREF_QUERIES: CrossRefQuerySpec[] = [
+  { query: "pension fund asset allocation", mode: "default" },
+  { query: "pension fund white paper", mode: "industry" },
+  { query: "pension industry research report", mode: "industry" },
+  { query: "total portfolio approach pension", mode: "tpa" },
+  { query: "pension fund reference portfolio", mode: "tpa" },
+  { query: "reference portfolio asset owner", mode: "tpa" },
 ];
+
+function buildCrossRefYearQueries(
+  yearIndex: number,
+  queriesPerYear: number
+): CrossRefQuerySpec[] {
+  const coreKeys = new Set(
+    CORE_CROSSREF_QUERIES.map((spec) => `${spec.mode}:${spec.query}`)
+  );
+  const extras = SEARCH_QUERY_SPECS.filter(
+    (spec) => !coreKeys.has(`${spec.mode}:${spec.query}`)
+  );
+  const rotatedExtras = pickRotatedQueries(
+    extras,
+    yearIndex,
+    Math.max(0, queriesPerYear - CORE_CROSSREF_QUERIES.length)
+  );
+
+  return [...CORE_CROSSREF_QUERIES, ...rotatedExtras];
+}
 
 interface CrossRefAuthor {
   given?: string;
@@ -72,19 +131,8 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function isRelevant(title: string, abstract: string): boolean {
-  const text = `${title} ${abstract}`.toLowerCase();
-  const core = [
-    "pension",
-    "retirement",
-    "superannuation",
-    "provident fund",
-    "endowment",
-    "sovereign wealth",
-    "public pension",
-    "defined benefit",
-  ];
-  return core.some((kw) => text.includes(kw));
+function cleanTitle(title: string): string {
+  return stripHtml(title);
 }
 
 function getYear(
@@ -115,15 +163,20 @@ function getPdfUrl(item: CrossRefItem): string | undefined {
 function mapItemToPaper(
   item: CrossRefItem,
   yearFrom: number,
-  yearTo: number
+  yearTo: number,
+  mode: RelevanceMode
 ): Paper | null {
-  const title = item.title?.[0]?.replace(/\s+/g, " ").trim();
+  const title = cleanTitle(item.title?.[0] ?? "");
   if (!title || !item.DOI) return null;
 
   const abstract = item.abstract ? stripHtml(item.abstract) : "";
   const year = getYear(item, yearFrom, yearTo);
   if (year === 0 || year < yearFrom || year > yearTo) return null;
-  if (!isRelevant(title, abstract)) return null;
+
+  const publicationType = item.type?.replace(/-/g, " ") ?? undefined;
+  if (!isPaperRelevant(title, abstract, mode, item.type ?? undefined)) {
+    return null;
+  }
 
   const { category, subCategory } = categorizePaper(title, abstract);
   const id = item.DOI.replace(/^https?:\/\/doi.org\//, "").replace(/\//g, "_");
@@ -149,7 +202,7 @@ function mapItemToPaper(
     countryCode,
     citationCount: item["is-referenced-by-count"] ?? 0,
     sourceSite: getSourceSiteLabel(originalUrl),
-    publicationType: item.type?.replace(/-/g, " ") ?? undefined,
+    publicationType,
   };
 }
 
@@ -189,33 +242,47 @@ export async function fetchLatestPapers(
   const { years, maxTotal, queriesPerYear, perPage } = buildYearFetchPlan(
     period.yearFrom,
     period.yearTo,
-    SEARCH_QUERIES.length
+    SEARCH_QUERY_SPECS.length
   );
   const seen = new Set<string>();
+  const seenTitles = new Set<string>();
   const papers: Paper[] = [];
 
   for (const [index, year] of years.entries()) {
     if (papers.length >= maxTotal) break;
 
-    const queries = pickRotatedQueries(
-      SEARCH_QUERIES,
-      index,
-      queriesPerYear
+    const querySpecs = buildCrossRefYearQueries(index, queriesPerYear);
+    const results = await mapWithDelay(
+      querySpecs,
+      (spec) =>
+        fetchQuery(spec.query, year, perPage).then((items) => ({
+          items,
+          mode: spec.mode,
+        })),
+      150
     );
-    const results = await mapWithDelay(queries, (query) =>
-      fetchQuery(query, year, perPage)
-    , 150);
 
     for (const batch of results) {
-      for (const item of batch) {
+      for (const item of batch.items) {
         if (papers.length >= maxTotal) break;
 
         const doi = item.DOI;
         if (!doi || seen.has(doi)) continue;
-        seen.add(doi);
 
-        const paper = mapItemToPaper(item, period.yearFrom, period.yearTo);
-        if (paper) papers.push(paper);
+        const paper = mapItemToPaper(
+          item,
+          period.yearFrom,
+          period.yearTo,
+          batch.mode
+        );
+        if (!paper) continue;
+
+        const titleKey = paper.title.trim().toLowerCase();
+        if (seenTitles.has(titleKey)) continue;
+
+        seen.add(doi);
+        seenTitles.add(titleKey);
+        papers.push(paper);
       }
     }
   }

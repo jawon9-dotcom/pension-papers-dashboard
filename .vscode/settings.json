@@ -1,0 +1,6 @@
+{
+  "workbench.editor.openSideBySideDirection": "right",
+  "workbench.browser.openLocalhostLinks": true,
+  "workbench.browser.showInTitleBar": true,
+  "simpleBrowser.useIntegratedBrowser": true
+}

@@ -16,29 +16,147 @@ import {
   getMaxPapersForPeriod,
   pickRotatedQueries,
 } from "./period";
+import { isPaperRelevant, RelevanceMode } from "./relevance";
+import { appendTpaNewsArticles, fetchTpaNewsArticles } from "./tpa-news";
 
 const OPENALEX_BASE = "https://api.openalex.org/works";
 const API_KEY = process.env.OPENALEX_API_KEY;
 const MAILTO = process.env.OPENALEX_EMAIL ?? "pension-dashboard@example.com";
 
-const BASE_FILTER_QUERIES = [
-  "title.search:pension fund",
-  "title.search:pension investment",
-  "title.search:pension asset allocation",
-  "title.search:pension risk management",
-  "title.search:pension performance",
-  "title.search:retirement fund investment",
-  "title.search:defined benefit pension",
-  "title.search:public pension",
-  "title.search:pension fund strategy",
-  "title.search:pension portfolio policy",
-  "title.search:institutional investor pension",
-  "title.search:pension fund white paper",
-  "title.search:retirement plan investment policy",
-  "title.search:asset owner pension strategy",
-  "title.search:pension industry research",
-  "title.search:sovereign pension fund",
+interface OpenAlexQuerySpec {
+  filter: string;
+  mode: RelevanceMode;
+}
+
+function interleaveQuerySpecs(
+  specs: OpenAlexQuerySpec[]
+): OpenAlexQuerySpec[] {
+  const academic = specs.filter((spec) => spec.mode === "default");
+  const industry = specs.filter((spec) => spec.mode === "industry");
+  const tpa = specs.filter((spec) => spec.mode === "tpa");
+  const interleaved: OpenAlexQuerySpec[] = [];
+  const maxLen = Math.max(academic.length, industry.length, tpa.length);
+
+  for (let index = 0; index < maxLen; index++) {
+    if (academic[index]) interleaved.push(academic[index]);
+    if (industry[index]) interleaved.push(industry[index]);
+    if (tpa[index]) interleaved.push(tpa[index]);
+  }
+
+  return interleaved;
+}
+
+const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
+  { filter: "title.search:pension fund", mode: "default" },
+  { filter: "title.search:pension investment", mode: "default" },
+  { filter: "title.search:pension asset allocation", mode: "default" },
+  { filter: "title.search:pension risk management", mode: "default" },
+  { filter: "title.search:pension performance", mode: "default" },
+  { filter: "title.search:retirement fund investment", mode: "default" },
+  { filter: "title.search:defined benefit pension", mode: "default" },
+  { filter: "title.search:public pension", mode: "default" },
+  { filter: "title.search:pension fund strategy", mode: "default" },
+  { filter: "title.search:pension portfolio policy", mode: "default" },
+  {
+    filter: "title.search:pension fund white paper,type:report|preprint",
+    mode: "industry",
+  },
+  {
+    filter: "title.search:pension industry research,type:report|article|preprint",
+    mode: "industry",
+  },
+  {
+    filter: "title.search:asset owner pension strategy,type:report|article|preprint",
+    mode: "industry",
+  },
+  {
+    filter: "title.search:retirement plan investment policy,type:report|article",
+    mode: "industry",
+  },
+  {
+    filter: "title.search:institutional investor pension,type:report|article|preprint",
+    mode: "industry",
+  },
+  {
+    filter: "title.search:sovereign pension fund,type:report|article|preprint",
+    mode: "industry",
+  },
+  {
+    filter: "title.search:pension fund annual report,type:report|preprint",
+    mode: "industry",
+  },
+  {
+    filter:
+      "title.search:total portfolio approach,type:report|article|preprint",
+    mode: "tpa",
+  },
+  {
+    filter: "title.search:reference portfolio,type:report|article|preprint",
+    mode: "tpa",
+  },
+  {
+    filter:
+      "default.search:total portfolio approach pension,type:report|article|preprint",
+    mode: "tpa",
+  },
+  {
+    filter:
+      "default.search:reference portfolio asset owner,type:report|article|preprint",
+    mode: "tpa",
+  },
+  {
+    filter:
+      "default.search:reference portfolio institutional investor,type:report|article|preprint",
+    mode: "tpa",
+  },
+]);
+
+const CORE_OPENALEX_QUERIES: OpenAlexQuerySpec[] = [
+  { filter: "title.search:pension fund", mode: "default" },
+  { filter: "title.search:pension investment", mode: "default" },
+  {
+    filter: "title.search:pension fund white paper,type:report|preprint",
+    mode: "industry",
+  },
+  {
+    filter: "title.search:pension industry research,type:report|article|preprint",
+    mode: "industry",
+  },
+  {
+    filter:
+      "title.search:total portfolio approach,type:report|article|preprint",
+    mode: "tpa",
+  },
+  {
+    filter:
+      "default.search:total portfolio approach pension,type:report|article|preprint",
+    mode: "tpa",
+  },
+  {
+    filter:
+      "default.search:reference portfolio asset owner,type:report|article|preprint",
+    mode: "tpa",
+  },
 ];
+
+function buildYearQueries(
+  yearIndex: number,
+  queriesPerYear: number
+): OpenAlexQuerySpec[] {
+  const coreKeys = new Set(
+    CORE_OPENALEX_QUERIES.map((spec) => `${spec.mode}:${spec.filter}`)
+  );
+  const extras = OPENALEX_QUERY_SPECS.filter(
+    (spec) => !coreKeys.has(`${spec.mode}:${spec.filter}`)
+  );
+  const rotatedExtras = pickRotatedQueries(
+    extras,
+    yearIndex,
+    Math.max(0, queriesPerYear - CORE_OPENALEX_QUERIES.length)
+  );
+
+  return [...CORE_OPENALEX_QUERIES, ...rotatedExtras];
+}
 
 interface OpenAlexWork {
   id: string;
@@ -77,60 +195,33 @@ function reconstructAbstract(
   return tokens.map((t) => t[1]).join(" ");
 }
 
-function isRelevant(title: string, abstract: string): boolean {
-  const text = `${title} ${abstract}`.toLowerCase();
-  const core = [
-    "pension",
-    "retirement",
-    "superannuation",
-    "provident fund",
-    "endowment fund",
-    "sovereign wealth",
-    "public pension",
-    "defined benefit",
-    "defined contribution",
-  ];
-  if (!core.some((kw) => text.includes(kw))) return false;
-
-  const context = [
-    "fund",
-    "investment",
-    "portfolio",
-    "asset",
-    "return",
-    "risk",
-    "allocation",
-    "benefit",
-    "liability",
-    "governance",
-    "strategy",
-    "policy",
-    "manager",
-    "trustee",
-    "fiduciary",
-    "research",
-    "report",
-    "industry",
-    "market",
-    "capital",
-    "finance",
-    "institutional",
-  ];
-  return context.some((kw) => text.includes(kw));
+function cleanTitle(title: string): string {
+  return title
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function mapWorkToPaper(
   work: OpenAlexWork,
   yearFrom: number,
-  yearTo: number
+  yearTo: number,
+  mode: RelevanceMode
 ): Paper | null {
   const abstract = reconstructAbstract(work.abstract_inverted_index);
-  const title = work.title?.replace(/\s+/g, " ").trim();
+  const title = cleanTitle(work.title ?? "");
   if (!title) return null;
 
   const year = work.publication_year ?? new Date().getFullYear();
   if (year < yearFrom || year > yearTo) return null;
-  if (!isRelevant(title, abstract)) return null;
+
+  const publicationType = work.type?.replace(/-/g, " ") ?? undefined;
+  if (!isPaperRelevant(title, abstract, mode, work.type ?? undefined)) {
+    return null;
+  }
 
   const { category, subCategory } = categorizePaper(title, abstract);
   const oaId = work.id.replace("https://openalex.org/", "");
@@ -168,7 +259,7 @@ function mapWorkToPaper(
     countryCode,
     citationCount: work.cited_by_count ?? 0,
     sourceSite: getSourceSiteLabel(originalUrl),
-    publicationType: work.type?.replace(/-/g, " ") ?? undefined,
+    publicationType,
   };
 }
 
@@ -202,7 +293,7 @@ async function fetchFromOpenAlex(period: FetchPeriod): Promise<Paper[]> {
   const { years, maxTotal, queriesPerYear, perPage } = buildYearFetchPlan(
     period.yearFrom,
     period.yearTo,
-    BASE_FILTER_QUERIES.length
+    OPENALEX_QUERY_SPECS.length
   );
   const seen = new Set<string>();
   const papers: Paper[] = [];
@@ -210,25 +301,31 @@ async function fetchFromOpenAlex(period: FetchPeriod): Promise<Paper[]> {
   for (const [index, year] of years.entries()) {
     if (papers.length >= maxTotal) break;
 
-    const queries = pickRotatedQueries(
-      BASE_FILTER_QUERIES,
-      index,
-      queriesPerYear
+    const querySpecs = buildYearQueries(index, queriesPerYear);
+    const filters = querySpecs.map(
+      (spec) => `${spec.filter},publication_year:${year}`
     );
-    const filters = queries.map((query) => `${query},publication_year:${year}`);
-    const results = await mapWithDelay(filters, (filter) =>
-      fetchOpenAlexFilter(filter, perPage)
+    const results = await mapWithDelay(filters, (filter, queryIndex) =>
+      fetchOpenAlexFilter(filter, perPage).then((works) => ({
+        works,
+        mode: querySpecs[queryIndex]?.mode ?? "default",
+      }))
     );
 
     for (const batch of results) {
-      for (const work of batch) {
+      for (const work of batch.works) {
         if (papers.length >= maxTotal) break;
 
         const id = work.id.replace("https://openalex.org/", "");
         if (seen.has(id)) continue;
         seen.add(id);
 
-        const paper = mapWorkToPaper(work, period.yearFrom, period.yearTo);
+        const paper = mapWorkToPaper(
+          work,
+          period.yearFrom,
+          period.yearTo,
+          batch.mode
+        );
         if (paper) papers.push(paper);
       }
     }
@@ -237,7 +334,33 @@ async function fetchFromOpenAlex(period: FetchPeriod): Promise<Paper[]> {
   return papers;
 }
 
-/** OpenAlex filter(주) + CrossRef(보조) 병합 수집 */
+function mergePaperLists(
+  lists: Paper[][],
+  maxTotal: number
+): Paper[] {
+  const seenIds = new Set<string>();
+  const seenTitles = new Set<string>();
+  const merged: Paper[] = [];
+
+  for (const list of lists) {
+    for (const paper of list) {
+      if (merged.length >= maxTotal) break;
+
+      const idKey = paper.openAlexId ?? paper.id;
+      const titleKey = paper.title.trim().toLowerCase();
+      if (seenIds.has(idKey) || seenTitles.has(titleKey)) continue;
+
+      seenIds.add(idKey);
+      seenTitles.add(titleKey);
+      merged.push(paper);
+    }
+  }
+
+  merged.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
+  return merged;
+}
+
+/** OpenAlex + CrossRef 항상 병합 수집 */
 export async function fetchLatestPapers(
   options?: Partial<FetchPeriod>
 ): Promise<Paper[]> {
@@ -245,27 +368,21 @@ export async function fetchLatestPapers(
     options?.yearFrom ?? DEFAULT_YEAR_FROM,
     options?.yearTo ?? getDefaultYearTo()
   );
-
-  const openalexPapers = await fetchFromOpenAlex(period);
   const maxTotal = getMaxPapersForPeriod(period.yearFrom, period.yearTo);
 
-  if (openalexPapers.length >= Math.min(maxTotal, 24)) {
-    return enrichPapers(openalexPapers.slice(0, maxTotal));
-  }
+  const [openalexPapers, crossrefPapers] = await Promise.all([
+    fetchFromOpenAlex(period),
+    fetchFromCrossRef(period),
+  ]);
 
-  const crossrefPapers = await fetchFromCrossRef(period);
-  const seen = new Set<string>();
-  const merged: Paper[] = [];
+  const merged = mergePaperLists(
+    [openalexPapers, crossrefPapers],
+    maxTotal
+  );
 
-  for (const paper of [...openalexPapers, ...crossrefPapers]) {
-    const key = paper.id;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(paper);
-  }
+  const tpaNewsArticles = await fetchTpaNewsArticles(period);
 
-  merged.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
-  return enrichPapers(merged.slice(0, maxTotal));
+  return enrichPapers(appendTpaNewsArticles(merged, tpaNewsArticles));
 }
 
 export interface FetchMeta {

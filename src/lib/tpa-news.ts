@@ -1,0 +1,605 @@
+import { Paper } from "@/types/paper";
+import { inferCountryFromText } from "./country";
+import { getSourceSiteLabel } from "./source";
+import { FetchPeriod, TPA_NEWS_MAX } from "./period";
+import { hasTrueTpaSignal } from "./relevance";
+
+const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
+const NEWS_API_BASE = "https://newsapi.org/v2/everything";
+
+const TPA_NEWS_SEARCHES = [
+  "total portfolio approach",
+  "reference portfolio pension",
+  "reference portfolio asset owner",
+  "total portfolio approach reference portfolio",
+];
+
+const FINANCIAL_NEWS_DOMAINS = [
+  "ft.com",
+  "bloomberg.com",
+  "reuters.com",
+  "institutionalinvestor.com",
+  "ai-cio.com",
+  "top1000funds.com",
+  "pionline.com",
+  "ipe.com",
+  "citywire.com",
+  "economist.com",
+  "wsj.com",
+  "cnbc.com",
+  "marketwatch.com",
+  "wealthmanagement.com",
+  "investordaily.com.au",
+  "superreview.com.au",
+];
+
+const DOMAIN_POPULARITY: Record<string, number> = {
+  "ft.com": 100,
+  "bloomberg.com": 98,
+  "reuters.com": 95,
+  "wsj.com": 94,
+  "economist.com": 90,
+  "cnbc.com": 85,
+  "institutionalinvestor.com": 88,
+  "pionline.com": 86,
+  "ipe.com": 84,
+  "ai-cio.com": 82,
+  "top1000funds.com": 80,
+  "citywire.com": 78,
+  "marketwatch.com": 76,
+  "wealthmanagement.com": 77,
+  "investordaily.com.au": 74,
+  "superreview.com.au": 72,
+};
+
+interface GdeltArticle {
+  url?: string;
+  title?: string;
+  seendate?: string;
+  domain?: string;
+  language?: string;
+  sourcecountry?: string;
+}
+
+interface GdeltResponse {
+  articles?: GdeltArticle[];
+}
+
+interface NewsApiArticle {
+  title?: string;
+  description?: string;
+  url?: string;
+  publishedAt?: string;
+  source?: { name?: string };
+}
+
+interface NewsApiResponse {
+  articles?: NewsApiArticle[];
+  totalResults?: number;
+}
+
+function hashUrl(url: string): string {
+  let hash = 0;
+  for (let index = 0; index < url.length; index++) {
+    hash = (hash << 5) - hash + url.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function cleanTitle(title: string): string {
+  return title.replace(/\s+/g, " ").trim();
+}
+
+function parseGdeltYear(seenDate?: string): number {
+  if (!seenDate || seenDate.length < 4) return new Date().getFullYear();
+  return Number(seenDate.slice(0, 4)) || new Date().getFullYear();
+}
+
+function parseIsoYear(iso?: string): number {
+  if (!iso) return new Date().getFullYear();
+  const year = Number(iso.slice(0, 4));
+  return Number.isFinite(year) ? year : new Date().getFullYear();
+}
+
+function getDomainPopularity(domain?: string): number {
+  if (!domain) return 40;
+  const normalized = domain.replace(/^www\./, "").toLowerCase();
+  return DOMAIN_POPULARITY[normalized] ?? 45;
+}
+
+function isFinancialNewsDomain(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    return FINANCIAL_NEWS_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isTpaNewsCandidate(title: string, description: string): boolean {
+  const text = `${title} ${description}`.toLowerCase();
+  if (!hasTrueTpaSignal(title, text)) return false;
+
+  return (
+    text.includes("pension") ||
+    text.includes("retirement") ||
+    text.includes("asset owner") ||
+    text.includes("institutional") ||
+    text.includes("sovereign") ||
+    text.includes("endowment") ||
+    text.includes("fund") ||
+    text.includes("portfolio") ||
+    text.includes("investment") ||
+    text.includes("60/40") ||
+    text.includes("60 / 40") ||
+    text.includes("volatility")
+  );
+}
+
+function mapNewsToPaper(
+  input: {
+    title: string;
+    url: string;
+    year: number;
+    description: string;
+    sourceLabel: string;
+    popularityScore: number;
+    idPrefix: string;
+  },
+  period: FetchPeriod
+): Paper | null {
+  const title = cleanTitle(input.title);
+  if (!title || !input.url) return null;
+  if (input.year < period.yearFrom || input.year > period.yearTo) return null;
+  if (!isTpaNewsCandidate(title, input.description)) return null;
+
+  const abstract =
+    input.description.trim() ||
+    `${title} — TPA( Total Portfolio Approach ) 및 Reference Portfolio 관련 뉴스 기사입니다.`;
+
+  return {
+    id: `${input.idPrefix}-${hashUrl(input.url)}`,
+    title,
+    titleKo: title,
+    authors: [input.sourceLabel],
+    year: input.year,
+    journal: input.sourceLabel,
+    category: "asset-allocation",
+    subCategory: "tpa",
+    abstract,
+    abstractKo: abstract,
+    summaryKo: "",
+    originalUrl: input.url,
+    hasAiSummary: false,
+    countryCode: inferCountryFromText(`${title} ${abstract}`),
+    citationCount: 0,
+    sourceSite: getSourceSiteLabel(input.url),
+    publicationType: "news article",
+    isNewsArticle: true,
+    popularityScore: input.popularityScore,
+  };
+}
+
+function formatGdeltDateTime(year: number, month: number, day: number): string {
+  return `${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}000000`;
+}
+
+function looksLikeNewsUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    if (
+      hostname.includes("doi.org") ||
+      hostname.includes("springer") ||
+      hostname.includes("wiley") ||
+      hostname.includes("sciencedirect") ||
+      hostname.includes("ssrn.com")
+    ) {
+      return false;
+    }
+    return (
+      isFinancialNewsDomain(url) ||
+      hostname.includes("news") ||
+      hostname.includes("review") ||
+      hostname.includes("daily")
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs = 45000
+): Promise<Response> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "PensionPapersDashboard/1.0",
+        },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      return res;
+    } catch (error) {
+      clearTimeout(timer);
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
+}
+
+async function fetchGdeltTpaNews(period: FetchPeriod): Promise<Paper[]> {
+  const start = formatGdeltDateTime(period.yearFrom, 1, 1);
+  const end = formatGdeltDateTime(period.yearTo, 12, 31);
+  const papers: Paper[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const query of TPA_NEWS_SEARCHES) {
+    const params = new URLSearchParams({
+      query,
+      mode: "artlist",
+      format: "json",
+      maxrecords: "40",
+      sort: "HybridRel",
+      STARTDATETIME: start,
+      ENDDATETIME: end,
+    });
+
+    try {
+      const res = await fetchWithTimeout(
+        `${GDELT_DOC_API}?${params.toString()}`
+      );
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as GdeltResponse;
+      const articles = data.articles ?? [];
+
+      articles.forEach((article, index) => {
+        if (!article.url || !article.title || seenUrls.has(article.url)) return;
+        seenUrls.add(article.url);
+
+        const rankBoost = Math.max(1, 40 - index);
+        const domainBoost = getDomainPopularity(article.domain);
+        const popularityScore = rankBoost * 25 + domainBoost * 10;
+
+        const paper = mapNewsToPaper(
+          {
+            title: article.title,
+            url: article.url,
+            year: parseGdeltYear(article.seendate),
+            description: article.title,
+            sourceLabel: getSourceSiteLabel(article.url),
+            popularityScore,
+            idPrefix: "news-gdelt",
+          },
+          period
+        );
+
+        if (paper) papers.push(paper);
+      });
+    } catch (error) {
+      console.warn("GDELT TPA news fetch failed:", error);
+    }
+  }
+
+  return papers;
+}
+
+async function fetchNewsApiTpaNews(period: FetchPeriod): Promise<Paper[]> {
+  const apiKey = process.env.NEWS_API_KEY;
+  if (!apiKey) return [];
+
+  const papers: Paper[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const query of TPA_NEWS_SEARCHES) {
+    const params = new URLSearchParams({
+      q: query,
+      language: "en",
+      sortBy: "popularity",
+      pageSize: "25",
+      from: `${period.yearFrom}-01-01`,
+      to: `${period.yearTo}-12-31`,
+      apiKey,
+    });
+
+    try {
+      const res = await fetch(`${NEWS_API_BASE}?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as NewsApiResponse;
+      const articles = data.articles ?? [];
+
+      articles.forEach((article, index) => {
+        if (!article.url || !article.title || seenUrls.has(article.url)) return;
+        seenUrls.add(article.url);
+
+        const totalResults = data.totalResults ?? 100;
+        const popularityScore = Math.round(
+          ((totalResults - index) / Math.max(totalResults, 1)) * 1000 +
+            getDomainPopularity(new URL(article.url).hostname) * 8
+        );
+
+        const paper = mapNewsToPaper(
+          {
+            title: article.title,
+            url: article.url,
+            year: parseIsoYear(article.publishedAt),
+            description: article.description ?? article.title,
+            sourceLabel: article.source?.name ?? getSourceSiteLabel(article.url),
+            popularityScore,
+            idPrefix: "news-api",
+          },
+          period
+        );
+
+        if (paper) papers.push(paper);
+      });
+    } catch (error) {
+      console.warn("NewsAPI TPA news fetch failed:", error);
+    }
+  }
+
+  return papers;
+}
+
+async function fetchOpenAlexTpaNews(period: FetchPeriod): Promise<Paper[]> {
+  const mailto = process.env.OPENALEX_EMAIL ?? "pension-dashboard@example.com";
+  const apiKey = process.env.OPENALEX_API_KEY;
+  const papers: Paper[] = [];
+  const seenUrls = new Set<string>();
+
+  const filters = [
+    `default.search:total portfolio approach,publication_year:${period.yearFrom}-${period.yearTo}`,
+    `default.search:reference portfolio pension,publication_year:${period.yearFrom}-${period.yearTo}`,
+    `default.search:reference portfolio asset owner,publication_year:${period.yearFrom}-${period.yearTo}`,
+    `title.search:total portfolio approach,publication_year:${period.yearFrom}-${period.yearTo}`,
+  ];
+
+  for (const filter of filters) {
+    const params = new URLSearchParams({
+      filter,
+      sort: "cited_by_count:desc",
+      per_page: "25",
+      mailto,
+    });
+    if (apiKey) params.set("api_key", apiKey);
+
+    try {
+      const res = await fetchWithTimeout(
+        `https://api.openalex.org/works?${params.toString()}`
+      );
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as {
+        results?: {
+          id: string;
+          title?: string;
+          publication_year?: number | null;
+          cited_by_count?: number;
+          type?: string;
+          primary_location?: {
+            landing_page_url?: string;
+            source?: { display_name?: string };
+          };
+        }[];
+      };
+
+      for (const [index, work] of (data.results ?? []).entries()) {
+        const url = work.primary_location?.landing_page_url;
+        const title = cleanTitle(work.title ?? "");
+        if (!url || !title || seenUrls.has(url)) continue;
+        if (!looksLikeNewsUrl(url)) continue;
+
+        seenUrls.add(url);
+        const popularityScore =
+          (work.cited_by_count ?? 0) * 40 +
+          getDomainPopularity(new URL(url).hostname) * 5 +
+          Math.max(1, 25 - index);
+
+        const paper = mapNewsToPaper(
+          {
+            title,
+            url,
+            year: work.publication_year ?? period.yearTo,
+            description: title,
+            sourceLabel:
+              work.primary_location?.source?.display_name ??
+              getSourceSiteLabel(url),
+            popularityScore,
+            idPrefix: "news-oa",
+          },
+          period
+        );
+
+        if (paper) papers.push(paper);
+      }
+    } catch (error) {
+      console.warn("OpenAlex TPA news fetch failed:", error);
+    }
+  }
+
+  return papers;
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseRssYear(pubDate?: string): number {
+  if (!pubDate) return new Date().getFullYear();
+  const year = new Date(pubDate).getFullYear();
+  return Number.isFinite(year) ? year : new Date().getFullYear();
+}
+
+function parseGoogleNewsTitle(rawTitle: string): {
+  title: string;
+  sourceLabel?: string;
+} {
+  const title = decodeXml(rawTitle);
+  const parts = title.split(" - ");
+  if (parts.length >= 2) {
+    return {
+      title: parts.slice(0, -1).join(" - ").trim(),
+      sourceLabel: parts[parts.length - 1]?.trim(),
+    };
+  }
+  return { title };
+}
+
+async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
+  const queries = [
+    "total+portfolio+approach+pension",
+    "total+portfolio+approach+institutional+investor",
+    "reference+portfolio+asset+owner",
+    "reference+portfolio+pension+fund",
+  ];
+  const papers: Paper[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const query of queries) {
+    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
+
+    try {
+      const res = await fetchWithTimeout(rssUrl);
+      if (!res.ok) continue;
+
+      const xml = await res.text();
+      const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+
+      items.forEach((match, index) => {
+        const item = match[1] ?? "";
+        const rawTitle = decodeXml(
+          item.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? ""
+        );
+        const parsedTitle = parseGoogleNewsTitle(rawTitle);
+        const title = parsedTitle.title;
+        const link = decodeXml(
+          item.match(/<link>([\s\S]*?)<\/link>/)?.[1] ?? ""
+        );
+        const pubDate = item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
+        const source = decodeXml(
+          item.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] ?? ""
+        );
+
+        if (!title || !link || seenUrls.has(link)) return;
+        seenUrls.add(link);
+
+        const popularityScore =
+          1200 - index * 15 + getDomainPopularity(new URL(link).hostname) * 6;
+
+        const paper = mapNewsToPaper(
+          {
+            title,
+            url: link,
+            year: parseRssYear(pubDate),
+            description: title,
+            sourceLabel:
+              parsedTitle.sourceLabel || source || getSourceSiteLabel(link),
+            popularityScore,
+            idPrefix: "news-rss",
+          },
+          period
+        );
+
+        if (paper) papers.push(paper);
+      });
+    } catch (error) {
+      console.warn("Google News RSS TPA fetch failed:", error);
+    }
+  }
+
+  return papers;
+}
+
+export async function fetchTpaNewsArticles(
+  period: FetchPeriod
+): Promise<Paper[]> {
+  const [gdelt, newsApi, openAlexNews, googleNews] = await Promise.all([
+    fetchGdeltTpaNews(period),
+    fetchNewsApiTpaNews(period),
+    fetchOpenAlexTpaNews(period),
+    fetchGoogleNewsRssTpa(period),
+  ]);
+
+  const seenUrls = new Set<string>();
+  const seenTitles = new Set<string>();
+  const merged: Paper[] = [];
+
+  for (const paper of [...newsApi, ...gdelt, ...googleNews, ...openAlexNews]) {
+    if (merged.length >= TPA_NEWS_MAX) break;
+
+    const urlKey = paper.originalUrl.toLowerCase();
+    const titleKey = paper.title.toLowerCase();
+    if (seenUrls.has(urlKey) || seenTitles.has(titleKey)) continue;
+
+    seenUrls.add(urlKey);
+    seenTitles.add(titleKey);
+    merged.push(paper);
+  }
+
+  merged.sort(
+    (a, b) =>
+      (b.popularityScore ?? 0) - (a.popularityScore ?? 0) ||
+      b.year - a.year
+  );
+
+  return merged.slice(0, TPA_NEWS_MAX);
+}
+
+export function appendTpaNewsArticles(
+  papers: Paper[],
+  newsArticles: Paper[]
+): Paper[] {
+  if (newsArticles.length === 0) return papers;
+
+  const seenUrls = new Set(
+    papers.map((paper) => paper.originalUrl.toLowerCase())
+  );
+  const seenTitles = new Set(
+    papers.map((paper) => paper.title.trim().toLowerCase())
+  );
+  const merged = [...papers];
+
+  for (const article of newsArticles) {
+    const urlKey = article.originalUrl.toLowerCase();
+    const titleKey = article.title.trim().toLowerCase();
+    if (seenUrls.has(urlKey) || seenTitles.has(titleKey)) continue;
+
+    seenUrls.add(urlKey);
+    seenTitles.add(titleKey);
+    merged.push(article);
+  }
+
+  merged.sort(
+    (a, b) =>
+      b.year - a.year ||
+      (b.popularityScore ?? b.citationCount ?? 0) -
+        (a.popularityScore ?? a.citationCount ?? 0)
+  );
+
+  return merged;
+}

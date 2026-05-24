@@ -13,6 +13,7 @@ import {
 import { AbstractPopup } from "./AbstractPopup";
 import { CountryFlag } from "./CountryFlag";
 import { PaperMetaBadges } from "./PaperMetaBadges";
+import { ContentType } from "./ContentTypeFilter";
 
 interface PaperListProps {
   papers: Paper[];
@@ -20,6 +21,7 @@ interface PaperListProps {
   onSelect: (paper: Paper) => void;
   activeCategory: MainCategory | "all";
   activeSubCategory: SubCategory | "all";
+  contentType?: ContentType;
 }
 
 const colorMap: Record<string, { badge: string; dot: string; selected: string }> = {
@@ -49,6 +51,7 @@ export function PaperList({
   papers,
   selectedId,
   onSelect,
+  contentType = "all",
 }: PaperListProps) {
   const [hoveredPaper, setHoveredPaper] = useState<Paper | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -67,9 +70,16 @@ export function PaperList({
   };
 
   if (papers.length === 0) {
+    const emptyMessage =
+      contentType === "news"
+        ? "해당 조건의 뉴스 기사가 없습니다."
+        : contentType === "papers"
+          ? "해당 주제의 논문이 없습니다."
+          : "표시할 항목이 없습니다.";
+
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-slate-500">
-        해당 주제의 논문이 없습니다.
+        {emptyMessage}
       </div>
     );
   }
@@ -84,6 +94,7 @@ export function PaperList({
           const colorKey = CATEGORY_COLORS[paper.category];
           const colors = colorMap[colorKey];
           const isSelected = paper.id === selectedId;
+          const isNews = paper.isNewsArticle === true;
 
           return (
             <button
@@ -96,8 +107,12 @@ export function PaperList({
                 canHover ? "hover:scale-[1.01]" : ""
               } ${
                 isSelected
-                  ? `${colors.selected} shadow-md ring-1 ring-inset ring-slate-600`
-                  : "border-slate-700/50 bg-slate-800/40 hover:border-slate-600 hover:bg-slate-800/70"
+                  ? isNews
+                    ? "border-rose-500/60 bg-rose-500/10 shadow-md ring-1 ring-inset ring-rose-500/30"
+                    : `${colors.selected} shadow-md ring-1 ring-inset ring-slate-600`
+                  : isNews
+                    ? "border-rose-500/20 bg-rose-950/20 hover:border-rose-500/40 hover:bg-rose-950/30"
+                    : "border-slate-700/50 bg-slate-800/40 hover:border-slate-600 hover:bg-slate-800/70"
               }`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -107,6 +122,11 @@ export function PaperList({
                   abstract={paper.abstract}
                   journal={paper.journal}
                 />
+                {isNews && (
+                  <span className="inline-flex items-center rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-300">
+                    뉴스
+                  </span>
+                )}
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${colors.badge}`}
                 >
@@ -120,6 +140,8 @@ export function PaperList({
                 </span>
                 <PaperMetaBadges
                   citationCount={paper.citationCount}
+                  popularityScore={paper.popularityScore}
+                  isNewsArticle={paper.isNewsArticle}
                   originalUrl={paper.originalUrl}
                   sourceSite={paper.sourceSite}
                 />

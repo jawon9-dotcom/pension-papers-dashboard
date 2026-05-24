@@ -10,6 +10,7 @@ import {
 import { CountryFlag } from "./CountryFlag";
 import { PaperMetaBadges } from "./PaperMetaBadges";
 import { ConnectedPapersPanel } from "./ConnectedPapersPanel";
+import { NewsArticleViewer } from "./NewsArticleViewer";
 import { CitationGraphNode } from "@/types/citation-graph";
 import { getCountryNameKo, resolveCountryCode } from "@/lib/country";
 
@@ -117,13 +118,24 @@ export function PaperViewer({
         </div>
         <div>
           <p className="text-lg font-medium text-slate-400">
-            논문을 선택해 주세요
+            항목을 선택해 주세요
           </p>
           <p className="mt-1 text-sm text-slate-600">
-            목록에서 논문을 선택하면 원문과 AI 요약을 확인할 수 있습니다
+            목록에서 논문 또는 뉴스를 선택하면 상세 내용을 확인할 수 있습니다
           </p>
         </div>
       </div>
+    );
+  }
+
+  if (paper.isNewsArticle) {
+    return (
+      <NewsArticleViewer
+        paper={paper}
+        openaiApiKey={openaiApiKey}
+        onPaperUpdate={onPaperUpdate}
+        onBack={onBack}
+      />
     );
   }
 
@@ -181,6 +193,8 @@ export function PaperViewer({
           </span>
           <PaperMetaBadges
             citationCount={paper.citationCount}
+            popularityScore={paper.popularityScore}
+            isNewsArticle={paper.isNewsArticle}
             originalUrl={paper.originalUrl}
             sourceSite={paper.sourceSite}
             size="md"
@@ -228,6 +242,8 @@ export function PaperViewer({
             </span>
             <PaperMetaBadges
               citationCount={paper.citationCount}
+              popularityScore={paper.popularityScore}
+              isNewsArticle={paper.isNewsArticle}
               originalUrl={paper.originalUrl}
               sourceSite={paper.sourceSite}
               size="md"

@@ -16,6 +16,7 @@ import {
   sortPapers,
 } from "@/lib/paper-sort";
 import { CategoryFilter } from "./CategoryFilter";
+import { ContentTypeFilter, ContentType, getContentTypeLabel } from "./ContentTypeFilter";
 import { OpenAiKeySettings } from "./OpenAiKeySettings";
 import { PeriodFilter } from "./PeriodFilter";
 import { PaperList } from "./PaperList";
@@ -69,6 +70,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
     initialPapers[0]?.id ?? null
   );
   const [sort, setSort] = useState<PaperSortState>(DEFAULT_PAPER_SORT);
+  const [contentType, setContentType] = useState<ContentType>("all");
   const [mobilePanel, setMobilePanel] = useState<"list" | "detail">("list");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -122,6 +124,8 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
 
   const filteredPapers = useMemo(() => {
     const filtered = papersInPeriod.filter((p) => {
+      if (contentType === "papers" && p.isNewsArticle) return false;
+      if (contentType === "news" && !p.isNewsArticle) return false;
       if (activeCategory !== "all" && p.category !== activeCategory)
         return false;
       if (
@@ -135,7 +139,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
     });
 
     return sortPapers(filtered, sort);
-  }, [papersInPeriod, activeCategory, activeSubCategory, sort]);
+  }, [papersInPeriod, contentType, activeCategory, activeSubCategory, sort]);
 
   const selectedPaper = useMemo(() => {
     if (filteredPapers.length === 0) return null;
@@ -145,6 +149,22 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
     }
     return filteredPapers[0];
   }, [filteredPapers, selectedId]);
+
+  const contentCounts = useMemo(
+    () => ({
+      all: papersInPeriod.length,
+      papers: papersInPeriod.filter((p) => !p.isNewsArticle).length,
+      news: papersInPeriod.filter((p) => p.isNewsArticle).length,
+    }),
+    [papersInPeriod]
+  );
+
+  const listTitle =
+    contentType === "news"
+      ? "뉴스 목록"
+      : contentType === "papers"
+        ? "논문 목록"
+        : "전체 목록";
 
   const counts = useMemo(() => {
     const result: Record<MainCategory | "all", number> = {
@@ -301,6 +321,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
               {appliedPeriod.yearFrom}~{appliedPeriod.yearTo}
               {activeCategory !== "all" &&
                 ` · ${CATEGORY_LABELS[activeCategory]}`}
+              {contentType !== "all" && ` · ${getContentTypeLabel(contentType)}`}
             </span>
           </button>
 
@@ -324,17 +345,20 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
               onSubCategoryChange={setActiveSubCategory}
               counts={counts}
             />
+            <ContentTypeFilter
+              activeType={contentType}
+              onTypeChange={setContentType}
+              counts={contentCounts}
+            />
             <PaperSortFilter sort={sort} onSortChange={setSort} />
           </div>
 
           <div className="flex shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/40 px-4 py-2.5">
-            <span className="text-sm font-medium text-slate-300">
-              논문 목록
-            </span>
+            <span className="text-sm font-medium text-slate-300">{listTitle}</span>
             <span className="text-xs text-slate-500">
               {loading
                 ? "불러오는 중..."
-                : `${filteredPapers.length}건 · ${getPaperSortLabel(sort)}`}
+                : `${filteredPapers.length}건 · ${getContentTypeLabel(contentType)} · ${getPaperSortLabel(sort)}`}
             </span>
           </div>
 
@@ -355,6 +379,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
               onSelect={handleSelectPaper}
               activeCategory={activeCategory}
               activeSubCategory={activeSubCategory}
+              contentType={contentType}
             />
           )}
           </div>

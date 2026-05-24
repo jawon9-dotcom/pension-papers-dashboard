@@ -28,6 +28,8 @@ export interface Paper {
   citationCount?: number;
   sourceSite?: string;
   publicationType?: string;
+  isNewsArticle?: boolean;
+  popularityScore?: number;
 }
 
 export const CATEGORY_LABELS: Record<MainCategory, string> = {
@@ -40,7 +42,7 @@ export const CATEGORY_LABELS: Record<MainCategory, string> = {
 export const ALLOCATION_SUB_CATEGORY_LABELS: Record<AllocationSubCategory, string> = {
   saa: "SAA(전략적 자산배분)",
   taa: "TAA(전술적 자산배분)",
-  tpa: "TPA(기준포트폴리오)",
+  tpa: "TPA(기준포트폴리오·Reference Portfolio)",
   "strategy-general": "그 외 운용전략",
 };
 
@@ -71,6 +73,10 @@ export function getSubCategoryLabel(
 }
 
 export function getPublicationSourceLabel(paper: Paper): string {
+  if (paper.isNewsArticle) {
+    const site = paper.sourceSite ?? "뉴스";
+    return `뉴스 · ${site}`;
+  }
   if (paper.journal && paper.journal !== "Academic Journal") {
     return paper.journal;
   }

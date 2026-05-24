@@ -77,13 +77,14 @@ const RULES: CategoryRule[] = [
     keywords: [
       "total portfolio approach",
       "reference portfolio",
-      "factor-based portfolio",
-      "liability-aware",
-      "holistic portfolio",
-      "tpa",
       "reference portfolio approach",
+      "benchmark reference portfolio",
+      "policy reference portfolio",
+      "reference portfolio framework",
+      "liberating portfolio",
+      "holistic portfolio approach",
     ],
-    weight: 1.5,
+    weight: 1.8,
   },
   {
     category: "asset-allocation",
@@ -167,11 +168,43 @@ function pickTopSub<T extends string>(
   return topScore > 0 ? top : fallback;
 }
 
+function applyTpaOverride(
+  title: string,
+  abstract: string,
+  result: { category: MainCategory; subCategory?: SubCategory }
+): { category: MainCategory; subCategory?: SubCategory } {
+  const text = `${title} ${abstract}`.toLowerCase();
+
+  if (
+    text.includes("mutual fund") &&
+    !text.includes("total portfolio approach") &&
+    !text.includes("pension")
+  ) {
+    return result;
+  }
+
+  const hasTpaTerm =
+    text.includes("total portfolio approach") ||
+    text.includes("reference portfolio approach") ||
+    (text.includes("reference portfolio") &&
+      (text.includes("pension") ||
+        text.includes("asset owner") ||
+        text.includes("institutional investor") ||
+        text.includes("sovereign") ||
+        text.includes("endowment") ||
+        text.includes("white paper")));
+
+  if (!hasTpaTerm) return result;
+
+  return { category: "asset-allocation", subCategory: "tpa" };
+}
+
 export function categorizePaper(
   title: string,
   abstract: string
 ): { category: MainCategory; subCategory?: SubCategory } {
   const text = `${title} ${abstract}`.toLowerCase();
+  const titleLower = title.toLowerCase();
 
   let bestCategory: MainCategory = "asset-allocation";
   let bestScore = 0;
@@ -179,6 +212,15 @@ export function categorizePaper(
   const categoryScores: Partial<Record<MainCategory, number>> = {};
   const allocationSubScores: Partial<Record<AllocationSubCategory, number>> = {};
   const managementSubScores: Partial<Record<ManagementSubCategory, number>> = {};
+
+  const tpaTitleBoost = titleLower.includes("total portfolio approach")
+    ? 2.5
+    : 0;
+  if (tpaTitleBoost > 0) {
+    categoryScores["asset-allocation"] =
+      (categoryScores["asset-allocation"] ?? 0) + tpaTitleBoost;
+    allocationSubScores.tpa = (allocationSubScores.tpa ?? 0) + tpaTitleBoost;
+  }
 
   for (const rule of RULES) {
     const score = scoreRule(text, rule);
@@ -211,25 +253,31 @@ export function categorizePaper(
   }
 
   if (bestCategory === "asset-management") {
-    return {
+    return applyTpaOverride(title, abstract, {
       category: bestCategory,
       subCategory: pickTopSub(managementSubScores, "equity"),
-    };
+    });
   }
 
   if (bestCategory === "asset-allocation") {
-    return {
+    return applyTpaOverride(title, abstract, {
       category: bestCategory,
       subCategory: pickTopSub(allocationSubScores, "strategy-general"),
-    };
+    });
   }
 
   if (bestScore === 0) {
     if (text.includes("pension") || text.includes("retirement")) {
-      return { category: "asset-allocation", subCategory: "strategy-general" };
+      return applyTpaOverride(title, abstract, {
+        category: "asset-allocation",
+        subCategory: "strategy-general",
+      });
     }
-    return { category: "asset-management", subCategory: "equity" };
+    return applyTpaOverride(title, abstract, {
+      category: "asset-management",
+      subCategory: "equity",
+    });
   }
 
-  return { category: bestCategory };
+  return applyTpaOverride(title, abstract, { category: bestCategory });
 }

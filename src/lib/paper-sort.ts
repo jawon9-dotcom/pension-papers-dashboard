@@ -35,14 +35,20 @@ export function togglePaperSort(
   return { field, direction: "desc" };
 }
 
+function getRankingScore(paper: Paper): number {
+  if (paper.isNewsArticle && (paper.popularityScore ?? 0) > 0) {
+    return paper.popularityScore ?? 0;
+  }
+  return paper.citationCount ?? 0;
+}
+
 export function sortPapers(papers: Paper[], sort: PaperSortState): Paper[] {
   const sorted = [...papers];
 
   if (sort.field === "citations") {
     sorted.sort((a, b) => {
-      const citationDiff = (b.citationCount ?? 0) - (a.citationCount ?? 0);
-      const directed =
-        sort.direction === "desc" ? citationDiff : -citationDiff;
+      const scoreDiff = getRankingScore(b) - getRankingScore(a);
+      const directed = sort.direction === "desc" ? scoreDiff : -scoreDiff;
       return directed || b.year - a.year || a.title.localeCompare(b.title);
     });
     return sorted;
@@ -53,7 +59,7 @@ export function sortPapers(papers: Paper[], sort: PaperSortState): Paper[] {
     const directedYearDiff = sort.direction === "desc" ? yearDiff : -yearDiff;
     return (
       directedYearDiff ||
-      (b.citationCount ?? 0) - (a.citationCount ?? 0) ||
+      getRankingScore(b) - getRankingScore(a) ||
       a.title.localeCompare(b.title)
     );
   });

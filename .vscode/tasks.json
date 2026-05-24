@@ -1,0 +1,91 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Preview: localhost (right split)",
+      "type": "shell",
+      "command": "echo ${input:openBrowserRight}",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "never",
+        "echo": false,
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Dev Server",
+      "type": "shell",
+      "command": "npm run dev",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "(Local:|Ready|ready|started|listening)"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Production Server",
+      "type": "shell",
+      "command": "npm run start",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "(Local:|Ready|ready|started|listening)"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+    {
+      "label": "Open Preview Right",
+      "type": "shell",
+      "command": "echo ${input:openBrowserRight}",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "never",
+        "echo": false
+      }
+    },
+    {
+      "label": "Dev + Preview (right)",
+      "dependsOn": ["Dev Server", "Open Preview Right"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Start + Preview (right)",
+      "dependsOn": ["Production Server", "Open Preview Right"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "openBrowserRight",
+      "type": "command",
+      "command": "workbench.action.browser.open",
+      "args": {
+        "url": "http://localhost:3000",
+        "openToSide": true,
+        "reuseUrlFilter": "http://localhost:3000/*"
+      }
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 export const DEFAULT_YEAR_FROM = 2022;
-export const MAX_PAPERS_CAP = 120;
+export const PAPERS_PER_YEAR = 50;
+export const MAX_PAPERS_CAP = 500;
+export const TPA_NEWS_MAX = 30;
 
 export function getDefaultYearTo(): number {
   return new Date().getFullYear();
@@ -17,10 +19,10 @@ export function getYearSpan(from: number, to: number): number {
   return to - from + 1;
 }
 
-/** Wider periods should return more papers, up to a cap. */
+/** 연도당 최대 50건, 전체 상한 500건 */
 export function getMaxPapersForPeriod(from: number, to: number): number {
   const span = getYearSpan(from, to);
-  return Math.min(MAX_PAPERS_CAP, Math.max(40, span * 10));
+  return Math.min(MAX_PAPERS_CAP, span * PAPERS_PER_YEAR);
 }
 
 export function buildYearFetchPlan(
@@ -35,11 +37,11 @@ export function buildYearFetchPlan(
 } {
   const years = listYearsInRange(yearFrom, yearTo);
   const maxTotal = getMaxPapersForPeriod(yearFrom, yearTo);
-  const queriesPerYear = Math.min(queryCount, years.length <= 3 ? 5 : 4);
+  const queriesPerYear = Math.min(queryCount, years.length <= 3 ? 10 : 8);
   const targetPerYear = Math.ceil(maxTotal / years.length);
   const perPage = Math.max(
-    3,
-    Math.min(12, Math.ceil(targetPerYear / queriesPerYear))
+    8,
+    Math.min(20, Math.ceil(targetPerYear / queriesPerYear))
   );
 
   return { years, maxTotal, queriesPerYear, perPage };
