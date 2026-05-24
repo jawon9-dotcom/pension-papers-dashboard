@@ -88,7 +88,38 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
   /academic industry partnership/i,
   /degree program/i,
   /professional degree/i,
+  /pension service industry/i,
+  /intelligent pension industry/i,
+  /new quality productivity/i,
+  /gansu province/i,
+  /blame game/i,
+  /bridges report/i,
+  /buster crabb/i,
+  /white capitalist patriarchy/i,
+  /informatics of domination/i,
+  /archaeology of religious/i,
+  /\bparsonage\b/i,
+  /methodist episcopal/i,
+  /research on the countermeasures/i,
+  /research on the development.*pension/i,
+  /research on the development and optimization/i,
+  /enabling intelligent pension/i,
 ];
+
+const OFF_TOPIC_TITLE_PATTERNS: RegExp[] = [
+  /^\s*-?\s*appendix\b/i,
+  /^appendix\s+[a-z0-9]/i,
+  /^chapter\s+\d+/i,
+  /^[\d]{1,2}\.?\s+/,
+  /^research methodology$/i,
+  /^[\d.]+\s+white capitalist/i,
+  /^[\d.]+\s+the blame game/i,
+];
+
+function isOffTopicTitle(title: string): boolean {
+  const trimmed = title.trim();
+  return OFF_TOPIC_TITLE_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
 
 const NON_INVESTMENT_PENSION_PATTERNS: RegExp[] = [
   /sexual orientation/i,
@@ -135,6 +166,8 @@ function hasInvestmentOperationSignal(text: string): boolean {
 export function isOffTopicPaper(
   paper: Pick<Paper, "title" | "abstract" | "journal">
 ): boolean {
+  if (isOffTopicTitle(paper.title)) return true;
+
   const text = `${paper.title} ${paper.abstract} ${paper.journal}`.toLowerCase();
   return OFF_TOPIC_PATTERNS.some((pattern) => pattern.test(text));
 }
