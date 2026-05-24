@@ -22,7 +22,10 @@ import { PeriodFilter } from "./PeriodFilter";
 import { PaperList } from "./PaperList";
 import { PaperSortFilter } from "./PaperSortFilter";
 import { PaperViewer } from "./PaperViewer";
+import { MyListFolder } from "./MyListFolder";
 import { useOpenAiApiKey } from "@/hooks/useOpenAiApiKey";
+import { useMyList } from "@/hooks/useMyList";
+import { resolveSavedPaper, SavedPaperItem } from "@/lib/my-list";
 
 interface PapersMeta {
   source: string;
@@ -41,6 +44,8 @@ interface DashboardProps {
 export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
   const { apiKey, hasApiKey, maskedKey, saveApiKey, clearApiKey } =
     useOpenAiApiKey();
+  const { items: myListItems, toggle: toggleMyList, remove: removeFromMyList, clear: clearMyList } =
+    useMyList();
   const [papers, setPapers] = useState<Paper[]>(initialPapers);
   const [meta, setMeta] = useState<PapersMeta>(initialMeta);
   const [loading, setLoading] = useState(false);
@@ -73,6 +78,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
   const [contentType, setContentType] = useState<ContentType>("all");
   const [mobilePanel, setMobilePanel] = useState<"list" | "detail">("list");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState<Paper | null>(null);
 
   const loadPapers = useCallback(
     async (refresh = false, period = appliedPeriod) => {
@@ -95,6 +101,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
         setMeta(data.meta);
         setAppliedPeriod(period);
         setSelectedId(data.papers[0]?.id ?? null);
+        setSelectedSnapshot(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "알 수 없는 오류");
       } finally {
@@ -141,14 +148,23 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
     return sortPapers(filtered, sort);
   }, [papersInPeriod, contentType, activeCategory, activeSubCategory, sort]);
 
+  const savedIds = useMemo(
+    () => new Set(myListItems.map((item) => item.id)),
+    [myListItems]
+  );
+
   const selectedPaper = useMemo(() => {
+    if (selectedSnapshot && selectedSnapshot.id === selectedId) {
+      return selectedSnapshot;
+    }
+
     if (filteredPapers.length === 0) return null;
     if (selectedId) {
       const found = filteredPapers.find((p) => p.id === selectedId);
       if (found) return found;
     }
     return filteredPapers[0];
-  }, [filteredPapers, selectedId]);
+  }, [filteredPapers, selectedId, selectedSnapshot]);
 
   const contentCounts = useMemo(
     () => ({
@@ -196,7 +212,24 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
 
   const handleSelectPaper = (paper: Paper) => {
     setSelectedId(paper.id);
+    setSelectedSnapshot(null);
     setMobilePanel("detail");
+  };
+
+  const handleSelectFromMyList = (item: SavedPaperItem) => {
+    const paper = resolveSavedPaper(item, papers);
+    setSelectedId(paper.id);
+    setSelectedSnapshot(
+      papers.some((existing) => existing.id === paper.id) ? null : paper
+    );
+    setMobilePanel("detail");
+  };
+
+  const handleRemoveFromMyList = (id: string) => {
+    removeFromMyList(id);
+    if (selectedId === id) {
+      setSelectedSnapshot(null);
+    }
   };
 
   const handleSelectConnected = (node: CitationGraphNode) => {
@@ -228,8 +261,11 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
       <header className="flex shrink-0 flex-col gap-3 border-b border-slate-800 bg-slate-900/80 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
         <div className="min-w-0">
           <h1 className="text-base font-bold leading-snug text-white sm:text-lg">
-            글로벌 연기금 운용 논문 모음 대시보드
+            글로벌 연기금 운용 논문 및 뉴스 대시보드
           </h1>
+          <p className="mt-0.5 text-[11px] text-slate-500 sm:text-xs">
+            원작자 <span className="font-medium text-slate-400">JWKOO</span>
+          </p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 sm:text-xs">
             {loading
               ? "논문 수집 중..."
@@ -242,6 +278,12 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <MyListFolder
+            items={myListItems}
+            onSelect={handleSelectFromMyList}
+            onRemove={handleRemoveFromMyList}
+            onClear={clearMyList}
+          />
           <OpenAiKeySettings
             hasApiKey={hasApiKey}
             maskedKey={maskedKey}
@@ -380,6 +422,8 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
               activeCategory={activeCategory}
               activeSubCategory={activeSubCategory}
               contentType={contentType}
+              savedIds={savedIds}
+              onToggleSave={toggleMyList}
             />
           )}
           </div>

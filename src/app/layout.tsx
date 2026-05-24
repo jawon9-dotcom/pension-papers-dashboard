@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "글로벌 연기금 운용 논문 모음 대시보드",
+  title: "글로벌 연기금 운용 논문 및 뉴스 대시보드",
   description:
-    "글로벌 연기금(Pension Fund) 운용 관련 학술 논문을 기간별로 탐색하고 주제별 분류·요약·원문을 확인하는 대시보드",
+    "글로벌 연기금(Pension Fund) 운용 관련 학술 논문과 뉴스를 기간별로 탐색하고 주제별 분류·요약·원문을 확인하는 대시보드",
 };
 
 export const viewport = {

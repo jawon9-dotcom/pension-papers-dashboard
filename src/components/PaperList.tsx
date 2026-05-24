@@ -22,6 +22,8 @@ interface PaperListProps {
   activeCategory: MainCategory | "all";
   activeSubCategory: SubCategory | "all";
   contentType?: ContentType;
+  savedIds?: Set<string>;
+  onToggleSave?: (paper: Paper) => void;
 }
 
 const colorMap: Record<string, { badge: string; dot: string; selected: string }> = {
@@ -52,6 +54,8 @@ export function PaperList({
   selectedId,
   onSelect,
   contentType = "all",
+  savedIds,
+  onToggleSave,
 }: PaperListProps) {
   const [hoveredPaper, setHoveredPaper] = useState<Paper | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -95,17 +99,12 @@ export function PaperList({
           const colors = colorMap[colorKey];
           const isSelected = paper.id === selectedId;
           const isNews = paper.isNewsArticle === true;
+          const isSaved = savedIds?.has(paper.id) ?? false;
 
           return (
-            <button
+            <div
               key={paper.id}
-              type="button"
-              onClick={() => onSelect(paper)}
-              onMouseEnter={canHover ? () => setHoveredPaper(paper) : undefined}
-              onMouseLeave={canHover ? () => setHoveredPaper(null) : undefined}
-              className={`w-full rounded-lg border p-4 text-left transition-colors duration-150 active:bg-slate-800/80 sm:p-3 ${
-                canHover ? "hover:scale-[1.01]" : ""
-              } ${
+              className={`flex gap-2 rounded-lg border transition-colors duration-150 sm:gap-1.5 ${
                 isSelected
                   ? isNews
                     ? "border-rose-500/60 bg-rose-500/10 shadow-md ring-1 ring-inset ring-rose-500/30"
@@ -115,6 +114,29 @@ export function PaperList({
                     : "border-slate-700/50 bg-slate-800/40 hover:border-slate-600 hover:bg-slate-800/70"
               }`}
             >
+              {onToggleSave && (
+                <label
+                  className="flex shrink-0 cursor-pointer items-start px-2 py-4 sm:px-2 sm:py-3"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSaved}
+                    onChange={() => onToggleSave(paper)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500/40"
+                    aria-label={`${paper.titleKo} 나의 목록에 저장`}
+                  />
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={() => onSelect(paper)}
+                onMouseEnter={canHover ? () => setHoveredPaper(paper) : undefined}
+                onMouseLeave={canHover ? () => setHoveredPaper(null) : undefined}
+                className={`min-w-0 flex-1 p-4 text-left active:bg-slate-800/80 sm:p-3 ${
+                  canHover ? "hover:scale-[1.005]" : ""
+                }`}
+              >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <CountryFlag
                   countryCode={paper.countryCode}
@@ -157,7 +179,8 @@ export function PaperList({
                   {getPublicationSourceLabel(paper)}
                 </span>
               </p>
-            </button>
+              </button>
+            </div>
           );
         })}
       </div>
