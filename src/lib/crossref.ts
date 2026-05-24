@@ -55,6 +55,8 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
   },
   { query: "public pension fund governance", mode: "default" },
   { query: "institutional pension portfolio management", mode: "default" },
+  { query: "pension fund portfolio management", mode: "default" },
+  { query: "pension fund investment strategy portfolio", mode: "default" },
   { query: "national pension fund investment", mode: "default" },
   { query: "pension fund economics finance", mode: "default" },
   { query: "pension fund asset management", mode: "default" },

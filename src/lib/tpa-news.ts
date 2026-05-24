@@ -1,4 +1,4 @@
-import { Paper } from "@/types/paper";
+import { Paper, MainCategory, SubCategory } from "@/types/paper";
 import { inferCountryFromText } from "./country";
 import { getSourceSiteLabel } from "./source";
 import { FetchPeriod, TPA_NEWS_MAX } from "./period";
@@ -8,11 +8,83 @@ import { isServerlessEnv } from "./server-env";
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
 const NEWS_API_BASE = "https://newsapi.org/v2/everything";
 
-const TPA_NEWS_SEARCHES = [
-  "total portfolio approach",
-  "reference portfolio pension",
+const PENSION_NEWS_SEARCHES = [
+  "total portfolio approach pension",
+  "reference portfolio pension fund",
   "reference portfolio asset owner",
-  "total portfolio approach reference portfolio",
+  "pension fund investment strategy",
+  "pension fund portfolio management",
+  "national pension fund investment",
+  "global pension fund portfolio",
+  "institutional pension portfolio",
+  "sovereign pension fund investment",
+  "public pension asset allocation",
+  "국민연금 운용",
+  "연기금 투자 전략",
+  "연기금 포트폴리오",
+  "공적연금 자산운용",
+];
+
+const KOREAN_TRUSTED_NEWS_DOMAINS = [
+  "mk.co.kr",
+  "maekyung.com",
+  "hankyung.com",
+  "fnnews.com",
+  "sedaily.com",
+  "edaily.co.kr",
+  "etnews.com",
+  "mt.co.kr",
+  "news1.kr",
+  "yna.co.kr",
+  "yonhapnews.co.kr",
+  "einfomax.co.kr",
+  "etoday.co.kr",
+  "bizwatch.co.kr",
+  "koreaherald.com",
+  "koreatimes.co.kr",
+  "thebell.co.kr",
+  "nspna.com",
+  "newsis.com",
+  "newspim.com",
+  "ajunews.com",
+  "heraldcorp.com",
+  "hankookilbo.com",
+  "donga.com",
+  "chosun.com",
+  "joins.com",
+  "joongang.co.kr",
+];
+
+const BLOCKED_NEWS_DOMAINS = [
+  "reddit.com",
+  "quora.com",
+  "pinterest.com",
+  "facebook.com",
+  "instagram.com",
+  "tiktok.com",
+  "twitter.com",
+  "x.com",
+  "medium.com",
+  "blogspot.com",
+  "wordpress.com",
+  "substack.com",
+  "seekingalpha.com",
+  "fool.com",
+  "zerohedge.com",
+  "beforeitsnews.com",
+  "naturalnews.com",
+  "thedailybeast.com",
+  "buzzfeed.com",
+  "dailymail.co.uk",
+  "mirror.co.uk",
+  "express.co.uk",
+  "thesun.co.uk",
+  "nypost.com",
+  "breitbart.com",
+  "infowars.com",
+  "worldtruth.tv",
+  "yournewswire.com",
+  "activistpost.com",
 ];
 
 const FINANCIAL_NEWS_DOMAINS = [
@@ -51,6 +123,12 @@ const DOMAIN_POPULARITY: Record<string, number> = {
   "wealthmanagement.com": 77,
   "investordaily.com.au": 74,
   "superreview.com.au": 72,
+  "mk.co.kr": 70,
+  "hankyung.com": 68,
+  "fnnews.com": 66,
+  "sedaily.com": 65,
+  "edaily.co.kr": 64,
+  "yna.co.kr": 72,
 };
 
 interface GdeltArticle {
@@ -120,24 +198,145 @@ function isFinancialNewsDomain(url: string): boolean {
   }
 }
 
-function isTpaNewsCandidate(title: string, description: string): boolean {
-  const text = `${title} ${description}`.toLowerCase();
-  if (!hasTrueTpaSignal(title, text)) return false;
+function normalizeHostname(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
 
-  return (
+function isBlockedNewsDomain(hostname: string): boolean {
+  return BLOCKED_NEWS_DOMAINS.some(
+    (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+  );
+}
+
+function isKoreanTrustedNewsDomain(url: string): boolean {
+  const hostname = normalizeHostname(url);
+  if (!hostname) return false;
+  return KOREAN_TRUSTED_NEWS_DOMAINS.some(
+    (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+  );
+}
+
+function isTrustedNewsPublisher(url: string): boolean {
+  const hostname = normalizeHostname(url);
+  if (!hostname) return false;
+  if (isBlockedNewsDomain(hostname)) return false;
+  if (hostname === "news.google.com") return true;
+  return isFinancialNewsDomain(url) || isKoreanTrustedNewsDomain(url);
+}
+
+function isPensionNewsCandidate(title: string, description: string): boolean {
+  const text = `${title} ${description}`.toLowerCase();
+  const hasPensionContext =
     text.includes("pension") ||
     text.includes("retirement") ||
-    text.includes("asset owner") ||
+    text.includes("superannuation") ||
+    text.includes("provident fund") ||
+    text.includes("national pension") ||
+    text.includes("public pension") ||
+    text.includes("sovereign pension") ||
+    text.includes("연기금") ||
+    text.includes("국민연금") ||
+    text.includes("공적연금") ||
+    text.includes("퇴직연금");
+
+  if (!hasPensionContext) return false;
+
+  return (
+    text.includes("fund") ||
+    text.includes("invest") ||
+    text.includes("portfolio") ||
+    text.includes("asset") ||
+    text.includes("allocation") ||
+    text.includes("strategy") ||
+    text.includes("manager") ||
     text.includes("institutional") ||
     text.includes("sovereign") ||
-    text.includes("endowment") ||
-    text.includes("fund") ||
-    text.includes("portfolio") ||
-    text.includes("investment") ||
-    text.includes("60/40") ||
-    text.includes("60 / 40") ||
-    text.includes("volatility")
+    text.includes("asset owner") ||
+    text.includes("운용") ||
+    text.includes("투자") ||
+    text.includes("포트폴리오") ||
+    text.includes("자산")
   );
+}
+
+function categorizeNewsArticle(
+  title: string,
+  description: string
+): { category: MainCategory; subCategory: SubCategory } {
+  const text = `${title} ${description}`.toLowerCase();
+
+  if (
+    text.includes("private equity") ||
+    text.includes("alternative investment") ||
+    text.includes("alternatives") ||
+    text.includes("real estate fund") ||
+    text.includes("infrastructure fund") ||
+    text.includes("hedge fund") ||
+    text.includes("대체투자") ||
+    text.includes("사모펀드") ||
+    text.includes("인프라")
+  ) {
+    return { category: "asset-management", subCategory: "alternative" };
+  }
+
+  if (
+    text.includes("fixed income") ||
+    text.includes("bond fund") ||
+    text.includes("bond market") ||
+    text.includes(" bond ") ||
+    text.includes("채권") ||
+    text.includes("금리")
+  ) {
+    return { category: "asset-management", subCategory: "bond" };
+  }
+
+  if (
+    text.includes("equity") ||
+    text.includes("stock market") ||
+    text.includes(" stock ") ||
+    text.includes("share ") ||
+    text.includes("주식") ||
+    text.includes("증시")
+  ) {
+    return { category: "asset-management", subCategory: "equity" };
+  }
+
+  if (
+    text.includes("portfolio management") ||
+    text.includes("investment strategy") ||
+    text.includes("asset management") ||
+    text.includes("fund manager") ||
+    text.includes("투자전략") ||
+    text.includes("운용전략")
+  ) {
+    return { category: "asset-management", subCategory: "equity" };
+  }
+
+  if (hasTrueTpaSignal(title, text)) {
+    return { category: "asset-allocation", subCategory: "tpa" };
+  }
+
+  if (
+    text.includes("strategic asset allocation") ||
+    text.includes(" saa") ||
+    text.includes("전략적 자산")
+  ) {
+    return { category: "asset-allocation", subCategory: "saa" };
+  }
+
+  if (
+    text.includes("tactical asset allocation") ||
+    text.includes(" taa") ||
+    text.includes("전술적 자산")
+  ) {
+    return { category: "asset-allocation", subCategory: "taa" };
+  }
+
+  return { category: "asset-allocation", subCategory: "strategy-general" };
 }
 
 function mapNewsToPaper(
@@ -149,17 +348,28 @@ function mapNewsToPaper(
     sourceLabel: string;
     popularityScore: number;
     idPrefix: string;
+    publisherUrl?: string;
   },
   period: FetchPeriod
 ): Paper | null {
   const title = cleanTitle(input.title);
   if (!title || !input.url) return null;
   if (input.year < period.yearFrom || input.year > period.yearTo) return null;
-  if (!isTpaNewsCandidate(title, input.description)) return null;
+
+  const trustUrl = input.publisherUrl || input.url;
+  const urlHostname = normalizeHostname(input.url);
+  if (urlHostname === "news.google.com" && !input.publisherUrl) return null;
+  if (!isTrustedNewsPublisher(trustUrl)) return null;
+  if (!isPensionNewsCandidate(title, input.description)) return null;
+
+  const { category, subCategory } = categorizeNewsArticle(
+    title,
+    input.description
+  );
 
   const abstract =
     input.description.trim() ||
-    `${title} — TPA( Total Portfolio Approach ) 및 Reference Portfolio 관련 뉴스 기사입니다.`;
+    `${title} — 글로벌 연기금·국민연금 관련 투자·운용 뉴스 기사입니다.`;
 
   return {
     id: `${input.idPrefix}-${hashUrl(input.url)}`,
@@ -168,8 +378,8 @@ function mapNewsToPaper(
     authors: [input.sourceLabel],
     year: input.year,
     journal: input.sourceLabel,
-    category: "asset-allocation",
-    subCategory: "tpa",
+    category,
+    subCategory,
     abstract,
     abstractKo: abstract,
     summaryKo: "",
@@ -177,7 +387,7 @@ function mapNewsToPaper(
     hasAiSummary: false,
     countryCode: inferCountryFromText(`${title} ${abstract}`),
     citationCount: 0,
-    sourceSite: getSourceSiteLabel(input.url),
+    sourceSite: getSourceSiteLabel(trustUrl),
     publicationType: "news article",
     isNewsArticle: true,
     popularityScore: input.popularityScore,
@@ -201,10 +411,10 @@ function looksLikeNewsUrl(url: string): boolean {
       return false;
     }
     return (
+      isTrustedNewsPublisher(url) ||
       isFinancialNewsDomain(url) ||
-      hostname.includes("news") ||
-      hostname.includes("review") ||
-      hostname.includes("daily")
+      isKoreanTrustedNewsDomain(url) ||
+      hostname.includes("news")
     );
   } catch {
     return false;
@@ -253,7 +463,7 @@ async function fetchGdeltTpaNews(period: FetchPeriod): Promise<Paper[]> {
   const papers: Paper[] = [];
   const seenUrls = new Set<string>();
 
-  for (const query of TPA_NEWS_SEARCHES) {
+  for (const query of PENSION_NEWS_SEARCHES) {
     const params = new URLSearchParams({
       query,
       mode: "artlist",
@@ -311,10 +521,11 @@ async function fetchNewsApiTpaNews(period: FetchPeriod): Promise<Paper[]> {
   const papers: Paper[] = [];
   const seenUrls = new Set<string>();
 
-  for (const query of TPA_NEWS_SEARCHES) {
+  for (const query of PENSION_NEWS_SEARCHES) {
+    const isKoreanQuery = /[\uAC00-\uD7A3]/.test(query);
     const params = new URLSearchParams({
       q: query,
-      language: "en",
+      language: isKoreanQuery ? "ko" : "en",
       sortBy: "popularity",
       pageSize: "25",
       from: `${period.yearFrom}-01-01`,
@@ -371,9 +582,12 @@ async function fetchOpenAlexTpaNews(period: FetchPeriod): Promise<Paper[]> {
   const seenUrls = new Set<string>();
 
   const filters = [
-    `default.search:total portfolio approach,publication_year:${period.yearFrom}-${period.yearTo}`,
+    `default.search:total portfolio approach pension,publication_year:${period.yearFrom}-${period.yearTo}`,
     `default.search:reference portfolio pension,publication_year:${period.yearFrom}-${period.yearTo}`,
     `default.search:reference portfolio asset owner,publication_year:${period.yearFrom}-${period.yearTo}`,
+    `default.search:pension fund investment strategy,publication_year:${period.yearFrom}-${period.yearTo}`,
+    `default.search:pension fund portfolio management,publication_year:${period.yearFrom}-${period.yearTo}`,
+    `default.search:national pension fund investment,publication_year:${period.yearFrom}-${period.yearTo}`,
     `title.search:total portfolio approach,publication_year:${period.yearFrom}-${period.yearTo}`,
   ];
 
@@ -477,17 +691,62 @@ function parseGoogleNewsTitle(rawTitle: string): {
 }
 
 async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
-  const queries = [
-    "total+portfolio+approach+pension",
-    "total+portfolio+approach+institutional+investor",
-    "reference+portfolio+asset+owner",
-    "reference+portfolio+pension+fund",
-  ];
+  const searches: Array<{ query: string; hl: string; gl: string; ceid: string }> =
+    [
+      {
+        query: "total+portfolio+approach+pension",
+        hl: "en-US",
+        gl: "US",
+        ceid: "US:en",
+      },
+      {
+        query: "pension+fund+portfolio+management",
+        hl: "en-US",
+        gl: "US",
+        ceid: "US:en",
+      },
+      {
+        query: "pension+fund+investment+strategy",
+        hl: "en-US",
+        gl: "US",
+        ceid: "US:en",
+      },
+      {
+        query: "reference+portfolio+asset+owner",
+        hl: "en-US",
+        gl: "US",
+        ceid: "US:en",
+      },
+      {
+        query: "reference+portfolio+pension+fund",
+        hl: "en-US",
+        gl: "US",
+        ceid: "US:en",
+      },
+      {
+        query: encodeURIComponent("국민연금+투자+전략"),
+        hl: "ko",
+        gl: "KR",
+        ceid: "KR:ko",
+      },
+      {
+        query: encodeURIComponent("연기금+포트폴리오+운용"),
+        hl: "ko",
+        gl: "KR",
+        ceid: "KR:ko",
+      },
+      {
+        query: encodeURIComponent("공적연금+자산운용"),
+        hl: "ko",
+        gl: "KR",
+        ceid: "KR:ko",
+      },
+    ];
   const papers: Paper[] = [];
   const seenUrls = new Set<string>();
 
-  for (const query of queries) {
-    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
+  for (const search of searches) {
+    const rssUrl = `https://news.google.com/rss/search?q=${search.query}&hl=${search.hl}&gl=${search.gl}&ceid=${search.ceid}`;
 
     try {
       const res = await fetchWithTimeout(rssUrl);
@@ -510,12 +769,20 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
         const source = decodeXml(
           item.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] ?? ""
         );
+        const publisherUrl = decodeXml(
+          item.match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? ""
+        );
 
         if (!title || !link || seenUrls.has(link)) return;
         seenUrls.add(link);
 
-        const popularityScore =
-          1200 - index * 15 + getDomainPopularity(new URL(link).hostname) * 6;
+        const trustHostname = normalizeHostname(publisherUrl || link);
+        const popularityBase =
+          trustHostname && isKoreanTrustedNewsDomain(publisherUrl || link)
+            ? getDomainPopularity(trustHostname)
+            : getDomainPopularity(new URL(link).hostname);
+
+        const popularityScore = 1200 - index * 15 + popularityBase * 6;
 
         const paper = mapNewsToPaper(
           {
@@ -527,6 +794,7 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
               parsedTitle.sourceLabel || source || getSourceSiteLabel(link),
             popularityScore,
             idPrefix: "news-rss",
+            publisherUrl: publisherUrl || undefined,
           },
           period
         );
@@ -534,7 +802,7 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
         if (paper) papers.push(paper);
       });
     } catch (error) {
-      console.warn("Google News RSS TPA fetch failed:", error);
+      console.warn("Google News RSS pension news fetch failed:", error);
     }
   }
 

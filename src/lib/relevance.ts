@@ -73,7 +73,7 @@ const FUND_MANAGER_DOMAIN_SIGNALS: Array<{ terms: string[]; weight: number }> =
       weight: 10,
     },
     {
-      terms: ["asset management", "portfolio management"],
+      terms: ["asset management", "portfolio management", "investment strategy"],
       weight: 9,
     },
     { terms: ["finance", "financial"], weight: 7 },
@@ -130,6 +130,13 @@ export function scorePaperRelevance(title: string, abstract: string): number {
   if (INSTITUTIONAL_CORE.some((kw) => text.includes(kw))) score += 4;
   if (FINANCE_CONTEXT.some((kw) => text.includes(kw))) score += 3;
   if (hasTrueTpaSignal(title, text)) score += 10;
+  if (
+    text.includes("portfolio management") ||
+    text.includes("investment strategy") ||
+    text.includes("portfolio policy")
+  ) {
+    score += 6;
+  }
 
   if (titleLower.includes("pension") || titleLower.includes("retirement")) {
     score += 6;

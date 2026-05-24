@@ -70,7 +70,7 @@ export function MyListFolder({
             className="fixed inset-0 z-40 bg-black/60 sm:hidden"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-x-4 bottom-4 z-50 flex max-h-[85vh] flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] sm:max-h-[70vh]">
+          <div className="fixed inset-x-3 top-14 z-50 flex max-h-[min(78dvh,calc(100dvh-4rem))] flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] sm:max-h-[70vh]">
             <div className="border-b border-slate-800 px-4 py-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
