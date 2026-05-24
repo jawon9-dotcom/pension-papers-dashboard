@@ -68,9 +68,9 @@ const PAPERS_TTL_MS = 24 * 60 * 60 * 1000;
 
 function papersCacheKey(yearFrom?: number, yearTo?: number): string {
   if (yearFrom !== undefined && yearTo !== undefined) {
-    return `papers-v21-${yearFrom}-${yearTo}.json`;
+    return `papers-v22-${yearFrom}-${yearTo}.json`;
   }
-  return "papers-v21.json";
+  return "papers-v22.json";
 }
 
 export async function getCachedPapers(

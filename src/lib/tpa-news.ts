@@ -31,6 +31,8 @@ import {
   PERFORMANCE_NEWS_KOREA_RATIO,
   PERFORMANCE_NEWS_MAX,
   hasPerformanceEvaluationNewsSignal,
+  isExcludedRetirementPensionNews,
+  isGlobalInstitutionalPensionPerformanceNews,
   isPerformanceEvaluationNewsCandidate,
 } from "./performance-evaluation-news";
 import { isServerlessEnv } from "./server-env";
@@ -1163,15 +1165,36 @@ async function fetchGoogleNewsPerformanceRss(period: FetchPeriod): Promise<Paper
   return papers;
 }
 
+function comparePerformanceNews(a: Paper, b: Paper): number {
+  const trustDiff = getNewsTrustTier(b) - getNewsTrustTier(a);
+  if (trustDiff !== 0) return trustDiff;
+
+  const aGlobalBoost =
+    (isGlobalPensionNews(a) ||
+      isGlobalInstitutionalPensionPerformanceNews(a.title, a.abstract))
+      ? 1
+      : 0;
+  const bGlobalBoost =
+    (isGlobalPensionNews(b) ||
+      isGlobalInstitutionalPensionPerformanceNews(b.title, b.abstract))
+      ? 1
+      : 0;
+  if (bGlobalBoost !== aGlobalBoost) return bGlobalBoost - aGlobalBoost;
+
+  return getNewsRecencyMs(b) - getNewsRecencyMs(a);
+}
+
 function mergePerformanceEvaluationNews(papers: Paper[]): Paper[] {
-  const merged = dedupeNewsArticles(papers);
+  const merged = dedupeNewsArticles(papers).filter(
+    (paper) => !isExcludedRetirementPensionNews(paper.title, paper.abstract)
+  );
 
   const koreaDomestic = merged
     .filter(isKoreaDomesticNews)
-    .sort(compareNewsByTrustAndRecency);
+    .sort(comparePerformanceNews);
   const globalNews = merged
     .filter((paper) => !isKoreaDomesticNews(paper))
-    .sort(compareNewsByTrustAndRecency);
+    .sort(comparePerformanceNews);
 
   const ratioTotal =
     PERFORMANCE_NEWS_GLOBAL_RATIO + PERFORMANCE_NEWS_KOREA_RATIO;
@@ -1192,6 +1215,7 @@ function mergePerformanceEvaluationNews(papers: Paper[]): Paper[] {
       ...koreaDomestic.slice(koreaPick.length),
     ]) {
       if (combined.length >= PERFORMANCE_NEWS_MAX) break;
+      if (isExcludedRetirementPensionNews(paper.title, paper.abstract)) continue;
       const urlKey = paper.originalUrl.toLowerCase();
       if (pickedUrls.has(urlKey)) continue;
       pickedUrls.add(urlKey);
@@ -1199,7 +1223,7 @@ function mergePerformanceEvaluationNews(papers: Paper[]): Paper[] {
     }
   }
 
-  combined.sort(compareNewsByTrustAndRecency);
+  combined.sort(comparePerformanceNews);
   return combined.slice(0, PERFORMANCE_NEWS_MAX);
 }
 
