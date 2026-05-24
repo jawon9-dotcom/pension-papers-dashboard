@@ -104,6 +104,17 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
   /research on the development.*pension/i,
   /research on the development and optimization/i,
   /enabling intelligent pension/i,
+  /smart pension industry/i,
+  /zhaoqing/i,
+  /disability and incapacity pension/i,
+  /incapacity pension/i,
+  /legal-administrative support/i,
+  /teachers' social benefits/i,
+  /national teachers/i,
+  /national health insurance/i,
+  /quality control of.*financial forecast/i,
+  /comparative case study with us medicare/i,
+  /financial forecast in korea/i,
 ];
 
 const OFF_TOPIC_TITLE_PATTERNS: RegExp[] = [

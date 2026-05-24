@@ -23,6 +23,8 @@ const SAA_PHRASES = [
   "정책 포트폴리오",
   "정책자산배분",
   "정책 자산배분",
+  "allocation of assets in pension plans",
+  "allocation of assets in pension",
 ];
 
 const TAA_PHRASES = [
@@ -94,12 +96,34 @@ function matchesTacticalAllocation(titleLower: string, text: string): boolean {
   );
 }
 
+function matchesPensionPlanAssetAllocation(
+  titleLower: string,
+  text: string
+): boolean {
+  const hasAllocationOfAssets =
+    titleLower.includes("allocation of assets") ||
+    text.includes("allocation of assets in pension") ||
+    text.includes("allocation of assets in pension plans");
+  const hasPensionPlanContext =
+    titleLower.includes("pension plan") ||
+    text.includes("pension plan") ||
+    text.includes("pension fund");
+
+  return (
+    hasAllocationOfAssets &&
+    hasPensionPlanContext &&
+    hasAllocationContext(text)
+  );
+}
+
 export function hasSaaSignal(title: string, text: string): boolean {
   const titleLower = title.toLowerCase();
 
   if (SAA_PHRASES.some((phrase) => matchesPhrase(text, titleLower, phrase))) {
     return true;
   }
+
+  if (matchesPensionPlanAssetAllocation(titleLower, text)) return true;
 
   if (matchesStrategicAllocation(titleLower, text)) return true;
 
