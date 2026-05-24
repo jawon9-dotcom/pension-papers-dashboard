@@ -135,6 +135,26 @@ export function scorePaperRelevance(title: string, abstract: string): number {
   if (hasSaaSignal(title, text)) score += 8;
   if (hasTaaSignal(title, text)) score += 8;
   if (
+    titleLower.includes("benchmark") &&
+    (text.includes("pension") || text.includes("manager evaluation"))
+  ) {
+    score += 10;
+  }
+  if (
+    titleLower.includes("factor") &&
+    text.includes("asset allocation") &&
+    text.includes("pension")
+  ) {
+    score += 10;
+  }
+  if (
+    titleLower.includes("strategic") &&
+    text.includes("asset allocation") &&
+    text.includes("pension")
+  ) {
+    score += 10;
+  }
+  if (
     text.includes("portfolio management") ||
     text.includes("investment strategy") ||
     text.includes("portfolio policy")
@@ -244,6 +264,25 @@ export function isPaperRelevant(
     }
 
     return relevanceScore >= 14;
+  }
+
+  if (
+    titleLower.includes("benchmark") &&
+    titleLower.includes("pension") &&
+    FINANCE_CONTEXT.some((kw) => text.includes(kw))
+  ) {
+    return true;
+  }
+
+  if (
+    (titleLower.includes("strategic asset allocation") ||
+      titleLower.includes("factor-based asset allocation") ||
+      titleLower.includes("factor based asset allocation")) &&
+    (text.includes("pension") ||
+      text.includes("portfolio") ||
+      relevanceScore >= 10)
+  ) {
+    return true;
   }
 
   if (PENSION_CORE.some((kw) => text.includes(kw))) {

@@ -1,6 +1,8 @@
 import { Dashboard } from "@/components/Dashboard";
 import { getCachedPapers } from "@/lib/cache";
-import { papers as fallbackPapers } from "@/data/papers";
+import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
+import { filterOutAfricanPapers } from "@/lib/africa-filter";
+import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
 import { DEFAULT_YEAR_FROM, getDefaultYearTo } from "@/lib/period";
 
@@ -11,12 +13,19 @@ export default async function Home() {
   const cached = await getCachedPapers(period.yearFrom, period.yearTo);
 
   if (cached) {
+    const papers = mergeCuratedPapers(
+      filterOutAfricanPapers(
+        enrichPapers(await applyCachedTitles(cached.papers))
+      ),
+      period
+    );
+
     return (
       <Dashboard
-        initialPapers={enrichPapers(cached.papers)}
+        initialPapers={papers}
         initialMeta={{
           source: "cache",
-          count: cached.papers.length,
+          count: papers.length,
           fetchedAt: cached.fetchedAt,
           yearFrom: period.yearFrom,
           yearTo: period.yearTo,
@@ -26,12 +35,14 @@ export default async function Home() {
     );
   }
 
+  const fallback = getCuratedPapers(period);
+
   return (
     <Dashboard
-      initialPapers={enrichPapers(fallbackPapers)}
+      initialPapers={fallback}
       initialMeta={{
         source: "fallback",
-        count: fallbackPapers.length,
+        count: fallback.length,
         fetchedAt: new Date().toISOString(),
         yearFrom: period.yearFrom,
         yearTo: period.yearTo,

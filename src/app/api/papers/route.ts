@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchLatestPapers } from "@/lib/openalex";
 import { getCachedPapers, setCachedPapers } from "@/lib/cache";
-import { papers as fallbackPapers } from "@/data/papers";
+import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
+import { filterOutAfricanPapers } from "@/lib/africa-filter";
 import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
 import { sleep } from "@/lib/fetch-utils";
@@ -9,10 +10,10 @@ import { getFetchBudgetMs } from "@/lib/server-env";
 import {
   clampYearRange,
   DEFAULT_YEAR_FROM,
-  filterPapersByYear,
   getDefaultYearTo,
   parseYear,
 } from "@/lib/period";
+import { Paper } from "@/types/paper";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -26,6 +27,14 @@ function parsePeriod(searchParams: URLSearchParams) {
   return clampYearRange(yearFrom, yearTo);
 }
 
+async function finalizePapers(
+  papers: Paper[],
+  period: ReturnType<typeof parsePeriod>
+) {
+  const enriched = enrichPapers(await applyCachedTitles(papers));
+  return mergeCuratedPapers(filterOutAfricanPapers(enriched), period);
+}
+
 export async function GET(request: NextRequest) {
   const refresh = request.nextUrl.searchParams.get("refresh") === "true";
   const period = parsePeriod(request.nextUrl.searchParams);
@@ -34,11 +43,12 @@ export async function GET(request: NextRequest) {
     if (!refresh) {
       const cached = await getCachedPapers(period.yearFrom, period.yearTo);
       if (cached) {
+        const papers = await finalizePapers(cached.papers, period);
         return NextResponse.json({
-          papers: enrichPapers(await applyCachedTitles(cached.papers)),
+          papers,
           meta: {
             source: "cache",
-            count: cached.papers.length,
+            count: papers.length,
             fetchedAt: cached.fetchedAt,
             yearFrom: period.yearFrom,
             yearTo: period.yearTo,
@@ -51,30 +61,15 @@ export async function GET(request: NextRequest) {
       fetchLatestPapers(period),
       sleep(getFetchBudgetMs()).then(() => null),
     ]);
-    const papers = enrichPapers(await applyCachedTitles(fetched ?? []));
-
-    if (papers.length < 8) {
-      const existingIds = new Set(papers.map((p) => p.id));
-      for (const fp of filterPapersByYear(
-        enrichPapers(fallbackPapers),
-        period.yearFrom,
-        period.yearTo
-      )) {
-        if (!existingIds.has(fp.id)) papers.push(fp);
-      }
-    }
+    const papers = await finalizePapers(fetched ?? [], period);
 
     if (papers.length === 0) {
+      const fallback = getCuratedPapers(period);
       return NextResponse.json({
-        papers: filterPapersByYear(
-          enrichPapers(fallbackPapers),
-          period.yearFrom,
-          period.yearTo
-        ),
+        papers: fallback,
         meta: {
           source: "fallback",
-          count: filterPapersByYear(fallbackPapers, period.yearFrom, period.yearTo)
-            .length,
+          count: fallback.length,
           fetchedAt: new Date().toISOString(),
           yearFrom: period.yearFrom,
           yearTo: period.yearTo,
@@ -110,16 +105,12 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Papers API error:", error);
+    const fallback = getCuratedPapers(period);
     return NextResponse.json({
-      papers: filterPapersByYear(
-        enrichPapers(fallbackPapers),
-        period.yearFrom,
-        period.yearTo
-      ),
+      papers: fallback,
       meta: {
         source: "fallback",
-        count: filterPapersByYear(fallbackPapers, period.yearFrom, period.yearTo)
-          .length,
+        count: fallback.length,
         fetchedAt: new Date().toISOString(),
         yearFrom: period.yearFrom,
         yearTo: period.yearTo,

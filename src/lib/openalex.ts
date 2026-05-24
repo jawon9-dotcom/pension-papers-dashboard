@@ -18,6 +18,8 @@ import {
   pickRotatedQueries,
 } from "./period";
 import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
+import { filterOutAfricanPapers } from "./africa-filter";
+import { mergeCuratedPapers } from "./curated-papers";
 import { appendTpaNewsArticles, fetchTpaNewsArticles } from "./tpa-news";
 
 const OPENALEX_BASE = "https://api.openalex.org/works";
@@ -53,8 +55,14 @@ const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
   { filter: "title.search:pension asset allocation", mode: "default" },
   { filter: "title.search:strategic asset allocation pension", mode: "default" },
   { filter: "title.search:tactical asset allocation pension", mode: "default" },
+  { filter: "title.search:benchmark pension fund manager evaluation", mode: "default" },
+  { filter: "title.search:factor based asset allocation pension", mode: "default" },
+  { filter: "title.search:strategic asset allocation public pension", mode: "default" },
   { filter: "default.search:strategic asset allocation pension fund", mode: "default" },
   { filter: "default.search:tactical asset allocation pension fund", mode: "default" },
+  { filter: "default.search:benchmark design pension assets", mode: "default" },
+  { filter: "default.search:manager evaluation pension fund benchmark", mode: "default" },
+  { filter: "default.search:factor based asset allocation global pension", mode: "default" },
   { filter: "title.search:pension risk management", mode: "default" },
   { filter: "title.search:pension performance", mode: "default" },
   { filter: "title.search:retirement fund investment", mode: "default" },
@@ -411,7 +419,12 @@ export async function fetchLatestPapers(
     maxTotal
   );
 
-  return enrichPapers(appendTpaNewsArticles(merged, tpaNewsArticles));
+  return enrichPapers(
+    appendTpaNewsArticles(
+      mergeCuratedPapers(filterOutAfricanPapers(merged), period),
+      tpaNewsArticles
+    )
+  );
 }
 
 export interface FetchMeta {
