@@ -27,6 +27,7 @@ import { PaperViewer } from "./PaperViewer";
 import { MyListFolder } from "./MyListFolder";
 import { useOpenAiApiKey } from "@/hooks/useOpenAiApiKey";
 import { useMyList } from "@/hooks/useMyList";
+import { useVisitorCount } from "@/hooks/useVisitorCount";
 import { resolveSavedPaper, SavedPaperItem } from "@/lib/my-list";
 
 interface PapersMeta {
@@ -53,6 +54,7 @@ export function Dashboard({
     useOpenAiApiKey();
   const { items: myListItems, toggle: toggleMyList, remove: removeFromMyList, clear: clearMyList } =
     useMyList();
+  const visitorCount = useVisitorCount();
   const [papers, setPapers] = useState<Paper[]>(initialPapers);
   const [meta, setMeta] = useState<PapersMeta>(initialMeta);
   const [loading, setLoading] = useState(autoFetchOnMount);
@@ -361,6 +363,11 @@ export function Dashboard({
         <div className="min-w-0">
           <h1 className="text-base font-bold leading-snug text-white sm:text-lg">
             글로벌 연기금 운용 논문 및 뉴스 대시보드
+            {visitorCount !== null && (
+              <span className="ml-2 text-[11px] font-normal text-slate-500 sm:text-xs">
+                · 방문 {visitorCount.toLocaleString("ko-KR")}명
+              </span>
+            )}
           </h1>
           <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 sm:text-xs">
             {loading
