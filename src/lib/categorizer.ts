@@ -9,8 +9,6 @@ import {
   hasTaaSignal,
   resolveSaaTaaSubCategory,
 } from "./allocation-signals";
-import { hasAllocationStrategySignal } from "./non-investment-pension-filter";
-
 interface CategoryRule {
   category: MainCategory;
   subCategory?: SubCategory;
@@ -134,19 +132,9 @@ const RULES: CategoryRule[] = [
       "allocation policy",
       "investment policy",
       "portfolio strategy",
-      "investment strategy",
-      "pension fund strategy",
-      "pension fund investment",
-      "liability driven",
-      "ldi",
-      "asset liability management",
-      "alm",
-      "portfolio policy",
       "자산배분",
-      "운용전략",
-      "부채연동",
     ],
-    weight: 1.2,
+    weight: 1.0,
   },
   {
     category: "asset-management",
@@ -350,41 +338,18 @@ export function categorizePaper(
   }
 
   if (bestCategory === "asset-allocation") {
-    const sub = pickTopSub(allocationSubScores, "strategy-general");
-    const hasAllocationSubScore = Object.values(allocationSubScores).some(
-      (score) => (score ?? 0) > 0
-    );
-    const resolvedSub =
-      sub === "strategy-general" && !hasAllocationSubScore && !hasAllocationStrategySignal(text)
-        ? undefined
-        : sub;
-
-    if (!resolvedSub) {
-      return applySaaTaaOverride(
-        title,
-        abstract,
-        applyTpaOverride(title, abstract, {
-          category: "asset-management",
-          subCategory: pickTopSub(managementSubScores, "equity"),
-        })
-      );
-    }
-
     return applySaaTaaOverride(
       title,
       abstract,
       applyTpaOverride(title, abstract, {
         category: bestCategory,
-        subCategory: resolvedSub,
+        subCategory: pickTopSub(allocationSubScores, "strategy-general"),
       })
     );
   }
 
   if (bestScore === 0) {
-    if (
-      (text.includes("pension") || text.includes("retirement")) &&
-      hasAllocationStrategySignal(text)
-    ) {
+    if (text.includes("pension") || text.includes("retirement")) {
       return applySaaTaaOverride(
         title,
         abstract,
