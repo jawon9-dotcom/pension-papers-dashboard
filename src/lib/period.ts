@@ -37,7 +37,11 @@ export function buildYearFetchPlan(
 } {
   const years = listYearsInRange(yearFrom, yearTo);
   const maxTotal = getMaxPapersForPeriod(yearFrom, yearTo);
-  const queriesPerYear = Math.min(queryCount, years.length <= 3 ? 10 : 8);
+  const defaultQueriesPerYear = Math.min(queryCount, years.length <= 3 ? 10 : 8);
+  const queriesPerYear =
+    typeof process !== "undefined" && process.env.VERCEL
+      ? Math.min(defaultQueriesPerYear, 4)
+      : defaultQueriesPerYear;
   const targetPerYear = Math.ceil(maxTotal / years.length);
   const perPage = Math.max(
     8,

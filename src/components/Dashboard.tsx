@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Paper, MainCategory, SubCategory, CATEGORY_LABELS } from "@/types/paper";
 import { CitationGraphNode } from "@/types/citation-graph";
 import {
@@ -39,16 +39,21 @@ interface PapersMeta {
 interface DashboardProps {
   initialPapers: Paper[];
   initialMeta: PapersMeta;
+  autoFetchOnMount?: boolean;
 }
 
-export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
+export function Dashboard({
+  initialPapers,
+  initialMeta,
+  autoFetchOnMount = false,
+}: DashboardProps) {
   const { apiKey, hasApiKey, maskedKey, saveApiKey, clearApiKey } =
     useOpenAiApiKey();
   const { items: myListItems, toggle: toggleMyList, remove: removeFromMyList, clear: clearMyList } =
     useMyList();
   const [papers, setPapers] = useState<Paper[]>(initialPapers);
   const [meta, setMeta] = useState<PapersMeta>(initialMeta);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(autoFetchOnMount);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,6 +116,11 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
     },
     [appliedPeriod]
   );
+
+  useEffect(() => {
+    if (!autoFetchOnMount) return;
+    void loadPapers(false);
+  }, [autoFetchOnMount, loadPapers]);
 
   const handleApplyPeriod = () => {
     const period = clampYearRange(yearFrom, yearTo);

@@ -3,6 +3,7 @@ import { inferCountryFromText } from "./country";
 import { getSourceSiteLabel } from "./source";
 import { FetchPeriod, TPA_NEWS_MAX } from "./period";
 import { hasTrueTpaSignal } from "./relevance";
+import { isServerlessEnv } from "./server-env";
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
 const NEWS_API_BASE = "https://newsapi.org/v2/everything";
@@ -212,13 +213,16 @@ function looksLikeNewsUrl(url: string): boolean {
 
 async function fetchWithTimeout(
   url: string,
-  timeoutMs = 45000
+  timeoutMs?: number
 ): Promise<Response> {
+  const isVercel = isServerlessEnv();
+  const resolvedTimeout = timeoutMs ?? (isVercel ? 8000 : 15000);
+  const maxAttempts = isVercel ? 1 : 2;
   let lastError: unknown;
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), resolvedTimeout);
 
     try {
       const res = await fetch(url, {
@@ -234,7 +238,9 @@ async function fetchWithTimeout(
     } catch (error) {
       clearTimeout(timer);
       lastError = error;
-      await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+      if (attempt + 1 < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+      }
     }
   }
 
@@ -538,8 +544,10 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
 export async function fetchTpaNewsArticles(
   period: FetchPeriod
 ): Promise<Paper[]> {
+  const skipGdelt = isServerlessEnv();
+
   const [gdelt, newsApi, openAlexNews, googleNews] = await Promise.all([
-    fetchGdeltTpaNews(period),
+    skipGdelt ? Promise.resolve([]) : fetchGdeltTpaNews(period),
     fetchNewsApiTpaNews(period),
     fetchOpenAlexTpaNews(period),
     fetchGoogleNewsRssTpa(period),

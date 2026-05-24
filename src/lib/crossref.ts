@@ -3,6 +3,7 @@ import { categorizePaper } from "./categorizer";
 import { inferCountryFromText } from "./country";
 import { getSourceSiteLabel } from "./source";
 import { mapWithDelay } from "./fetch-utils";
+import { getCrossRefFetchDelayMs } from "./server-env";
 import {
   buildYearFetchPlan,
   clampYearRange,
@@ -259,7 +260,7 @@ export async function fetchLatestPapers(
           items,
           mode: spec.mode,
         })),
-      150
+      getCrossRefFetchDelayMs()
     );
 
     for (const batch of results) {

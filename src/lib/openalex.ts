@@ -6,7 +6,8 @@ import {
   inferCountryFromText,
 } from "./country";
 import { getSourceSiteLabel, enrichPapers } from "./source";
-import { mapWithDelay } from "./fetch-utils";
+import { mapWithDelay, sleep } from "./fetch-utils";
+import { getFetchDelayMs, isServerlessEnv } from "./server-env";
 import {
   buildYearFetchPlan,
   clampYearRange,
@@ -305,11 +306,14 @@ async function fetchFromOpenAlex(period: FetchPeriod): Promise<Paper[]> {
     const filters = querySpecs.map(
       (spec) => `${spec.filter},publication_year:${year}`
     );
-    const results = await mapWithDelay(filters, (filter, queryIndex) =>
-      fetchOpenAlexFilter(filter, perPage).then((works) => ({
-        works,
-        mode: querySpecs[queryIndex]?.mode ?? "default",
-      }))
+    const results = await mapWithDelay(
+      filters,
+      (filter, queryIndex) =>
+        fetchOpenAlexFilter(filter, perPage).then((works) => ({
+          works,
+          mode: querySpecs[queryIndex]?.mode ?? "default",
+        })),
+      getFetchDelayMs()
     );
 
     for (const batch of results) {
@@ -380,7 +384,10 @@ export async function fetchLatestPapers(
     maxTotal
   );
 
-  const tpaNewsArticles = await fetchTpaNewsArticles(period);
+  const tpaNewsArticles = await Promise.race([
+    fetchTpaNewsArticles(period),
+    sleep(isServerlessEnv() ? 4000 : 25000).then(() => [] as Paper[]),
+  ]);
 
   return enrichPapers(appendTpaNewsArticles(merged, tpaNewsArticles));
 }

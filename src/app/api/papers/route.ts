@@ -3,6 +3,8 @@ import { fetchLatestPapers } from "@/lib/openalex";
 import { getCachedPapers, setCachedPapers } from "@/lib/cache";
 import { papers as fallbackPapers } from "@/data/papers";
 import { enrichPapers } from "@/lib/source";
+import { sleep } from "@/lib/fetch-utils";
+import { getFetchBudgetMs } from "@/lib/server-env";
 import {
   clampYearRange,
   DEFAULT_YEAR_FROM,
@@ -44,7 +46,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const papers = enrichPapers(await fetchLatestPapers(period));
+    const fetched = await Promise.race([
+      fetchLatestPapers(period),
+      sleep(getFetchBudgetMs()).then(() => null),
+    ]);
+    const papers = enrichPapers(fetched ?? []);
 
     if (papers.length < 8) {
       const existingIds = new Set(papers.map((p) => p.id));
