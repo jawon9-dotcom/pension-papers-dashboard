@@ -186,11 +186,13 @@ export function Dashboard({
   );
 
   const listTitle =
-    contentType === "news"
-      ? "뉴스 목록"
-      : contentType === "papers"
-        ? "논문 목록"
-        : "전체 목록";
+    activeCategory !== "all"
+      ? `${CATEGORY_LABELS[activeCategory]} 목록`
+      : contentType === "news"
+        ? "뉴스 목록"
+        : contentType === "papers"
+          ? "논문 목록"
+          : "전체 목록";
 
   const counts = useMemo(() => {
     const result: Record<MainCategory | "all", number> = {
@@ -211,6 +213,15 @@ export function Dashboard({
     if (cat !== "asset-management" && cat !== "asset-allocation") {
       setActiveSubCategory("all");
     }
+  };
+
+  const handleStatCategoryClick = (category: MainCategory) => {
+    const nextCategory = activeCategory === category ? "all" : category;
+    handleCategoryChange(nextCategory);
+    setActiveSubCategory("all");
+    setSelectedId(null);
+    setSelectedSnapshot(null);
+    setMobilePanel("list");
   };
 
   const handlePaperUpdate = (updated: Paper) => {
@@ -273,9 +284,6 @@ export function Dashboard({
           <h1 className="text-base font-bold leading-snug text-white sm:text-lg">
             글로벌 연기금 운용 논문 및 뉴스 대시보드
           </h1>
-          <p className="mt-0.5 text-[11px] text-slate-500 sm:text-xs">
-            원작자 <span className="font-medium text-slate-400">JWKOO</span>
-          </p>
           <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 sm:text-xs">
             {loading
               ? "논문 수집 중..."
@@ -326,20 +334,80 @@ export function Dashboard({
               {refreshing ? "수집 중..." : "최신 논문 수집"}
             </span>
           </button>
-          <div className="hidden items-center gap-4 md:flex">
-            <Stat label="운용전략" value={counts["asset-allocation"]} color="text-emerald-400" />
-            <Stat label="자산운용" value={counts["asset-management"]} color="text-blue-400" />
-            <Stat label="리스크관리" value={counts["risk-management"]} color="text-amber-400" />
-            <Stat label="성과평가" value={counts["performance-evaluation"]} color="text-violet-400" />
+          <div className="hidden items-center gap-3 md:flex">
+            <Stat
+              label="운용전략"
+              value={counts["asset-allocation"]}
+              color="text-emerald-400"
+              active={activeCategory === "asset-allocation"}
+              activeClass="border-emerald-500/50 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+              onClick={() => handleStatCategoryClick("asset-allocation")}
+            />
+            <Stat
+              label="자산운용"
+              value={counts["asset-management"]}
+              color="text-blue-400"
+              active={activeCategory === "asset-management"}
+              activeClass="border-blue-500/50 bg-blue-500/10 ring-1 ring-blue-500/30"
+              onClick={() => handleStatCategoryClick("asset-management")}
+            />
+            <Stat
+              label="리스크관리"
+              value={counts["risk-management"]}
+              color="text-amber-400"
+              active={activeCategory === "risk-management"}
+              activeClass="border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/30"
+              onClick={() => handleStatCategoryClick("risk-management")}
+            />
+            <Stat
+              label="성과평가"
+              value={counts["performance-evaluation"]}
+              color="text-violet-400"
+              active={activeCategory === "performance-evaluation"}
+              activeClass="border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/30"
+              onClick={() => handleStatCategoryClick("performance-evaluation")}
+            />
           </div>
         </div>
       </header>
 
       <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-800 px-4 py-2 md:hidden">
-        <Stat label="운용전략" value={counts["asset-allocation"]} color="text-emerald-400" compact />
-        <Stat label="자산운용" value={counts["asset-management"]} color="text-blue-400" compact />
-        <Stat label="리스크관리" value={counts["risk-management"]} color="text-amber-400" compact />
-        <Stat label="성과평가" value={counts["performance-evaluation"]} color="text-violet-400" compact />
+        <Stat
+          label="운용전략"
+          value={counts["asset-allocation"]}
+          color="text-emerald-400"
+          compact
+          active={activeCategory === "asset-allocation"}
+          activeClass="border-emerald-500/50 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+          onClick={() => handleStatCategoryClick("asset-allocation")}
+        />
+        <Stat
+          label="자산운용"
+          value={counts["asset-management"]}
+          color="text-blue-400"
+          compact
+          active={activeCategory === "asset-management"}
+          activeClass="border-blue-500/50 bg-blue-500/10 ring-1 ring-blue-500/30"
+          onClick={() => handleStatCategoryClick("asset-management")}
+        />
+        <Stat
+          label="리스크관리"
+          value={counts["risk-management"]}
+          color="text-amber-400"
+          compact
+          active={activeCategory === "risk-management"}
+          activeClass="border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/30"
+          onClick={() => handleStatCategoryClick("risk-management")}
+        />
+        <Stat
+          label="성과평가"
+          value={counts["performance-evaluation"]}
+          color="text-violet-400"
+          compact
+          active={activeCategory === "performance-evaluation"}
+          activeClass="border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/30"
+          onClick={() => handleStatCategoryClick("performance-evaluation")}
+        />
       </div>
 
       {error && (
@@ -463,25 +531,43 @@ function Stat({
   value,
   color,
   compact = false,
+  active = false,
+  activeClass = "",
+  onClick,
 }: {
   label: string;
   value: number;
   color: string;
   compact?: boolean;
+  active?: boolean;
+  activeClass?: string;
+  onClick?: () => void;
 }) {
-  if (compact) {
-    return (
-      <div className="shrink-0 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-center">
-        <p className={`text-sm font-bold ${color}`}>{value}</p>
-        <p className="text-[10px] text-slate-500">{label}</p>
-      </div>
-    );
+  const baseClass = compact
+    ? "shrink-0 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-1.5 text-center transition hover:border-slate-600 hover:bg-slate-800/80"
+    : "rounded-lg border border-transparent px-2 py-1 text-center transition hover:bg-slate-800/60";
+
+  const content = (
+    <>
+      <p className={`${compact ? "text-sm" : "text-lg"} font-bold ${color}`}>
+        {value}
+      </p>
+      <p className="text-[10px] text-slate-500">{label}</p>
+    </>
+  );
+
+  if (!onClick) {
+    return <div className={baseClass}>{content}</div>;
   }
 
   return (
-    <div className="text-center">
-      <p className={`text-lg font-bold ${color}`}>{value}</p>
-      <p className="text-[10px] text-slate-500">{label}</p>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`${baseClass} ${active ? activeClass : ""}`}
+    >
+      {content}
+    </button>
   );
 }
