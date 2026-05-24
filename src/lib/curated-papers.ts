@@ -1,16 +1,15 @@
 import { papers as curatedPapers } from "@/data/papers";
 import { Paper } from "@/types/paper";
+import { deduplicatePapers, normalizePaperTitle } from "./deduplicate-papers";
 import { filterExcludedRegionPapers } from "./paper-region-filter";
 import { filterPapersByYear, FetchPeriod } from "./period";
 import { enrichPapers } from "./source";
 
-function normalizeTitle(title: string): string {
-  return title.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
 export function getCuratedPapers(period: FetchPeriod): Paper[] {
-  return filterExcludedRegionPapers(
-    filterPapersByYear(enrichPapers(curatedPapers), period.yearFrom, period.yearTo)
+  return deduplicatePapers(
+    filterExcludedRegionPapers(
+      filterPapersByYear(enrichPapers(curatedPapers), period.yearFrom, period.yearTo)
+    )
   );
 }
 
@@ -18,15 +17,15 @@ export function mergeCuratedPapers(
   papers: Paper[],
   period: FetchPeriod
 ): Paper[] {
-  const filtered = filterExcludedRegionPapers(papers);
+  const filtered = deduplicatePapers(filterExcludedRegionPapers(papers));
   const existingIds = new Set(filtered.map((paper) => paper.id));
   const existingTitles = new Set(
-    filtered.map((paper) => normalizeTitle(paper.title))
+    filtered.map((paper) => normalizePaperTitle(paper.title))
   );
   const merged = [...filtered];
 
   for (const paper of getCuratedPapers(period)) {
-    const titleKey = normalizeTitle(paper.title);
+    const titleKey = normalizePaperTitle(paper.title);
     if (existingIds.has(paper.id) || existingTitles.has(titleKey)) continue;
 
     merged.push(paper);
@@ -34,5 +33,5 @@ export function mergeCuratedPapers(
     existingTitles.add(titleKey);
   }
 
-  return merged;
+  return deduplicatePapers(merged);
 }

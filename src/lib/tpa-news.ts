@@ -1,5 +1,6 @@
 import { Paper, MainCategory, SubCategory } from "@/types/paper";
 import { inferCountryFromText } from "./country";
+import { normalizePaperTitle } from "./deduplicate-papers";
 import { getSourceSiteLabel } from "./source";
 import { FetchPeriod, MAX_KOREA_DOMESTIC_NEWS, TPA_NEWS_MAX } from "./period";
 import { hasTrueTpaSignal } from "./relevance";
@@ -1027,14 +1028,14 @@ export function appendTpaNewsArticles(
     papers.map((paper) => paper.originalUrl.toLowerCase())
   );
   const seenTitles = new Set(
-    papers.map((paper) => paper.title.trim().toLowerCase())
+    papers.map((paper) => normalizePaperTitle(paper.title))
   );
   const merged = [...papers];
 
   for (const article of newsArticles) {
     const urlKey = article.originalUrl.toLowerCase();
-    const titleKey = article.title.trim().toLowerCase();
-    if (seenUrls.has(urlKey) || seenTitles.has(titleKey)) continue;
+    const titleKey = normalizePaperTitle(article.title);
+    if (!titleKey || seenUrls.has(urlKey) || seenTitles.has(titleKey)) continue;
 
     seenUrls.add(urlKey);
     seenTitles.add(titleKey);

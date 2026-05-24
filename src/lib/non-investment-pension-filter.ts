@@ -115,16 +115,30 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
   /quality control of.*financial forecast/i,
   /comparative case study with us medicare/i,
   /financial forecast in korea/i,
+  /e-commerce-driven pension/i,
+  /e-commerce.*pension industry/i,
+  /pension industry and health industry/i,
+  /integrated development path.*pension/i,
+  /positioning of self within research/i,
+  /sources for pfas/i,
+  /\bpfas research\b/i,
+  /pension fund accounting/i,
+  /psak no\.?\s*18/i,
+  /bpjs ketenagakerjaan/i,
+  /accounting reporting at bpjs/i,
 ];
 
 const OFF_TOPIC_TITLE_PATTERNS: RegExp[] = [
   /^\s*-?\s*appendix\b/i,
   /^appendix\s+[a-z0-9]/i,
+  /^\s*-?\s*annex\s+[a-z0-9]/i,
+  /^annex\s+[a-z0-9]/i,
   /^chapter\s+\d+/i,
   /^[\d]{1,2}\.?\s+/,
   /^research methodology$/i,
   /^[\d.]+\s+white capitalist/i,
   /^[\d.]+\s+the blame game/i,
+  /^sources for pfas\b/i,
 ];
 
 function isOffTopicTitle(title: string): boolean {

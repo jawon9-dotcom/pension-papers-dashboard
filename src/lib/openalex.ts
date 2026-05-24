@@ -20,6 +20,7 @@ import {
 import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
 import { filterExcludedRegionPapers } from "./paper-region-filter";
 import { mergeCuratedPapers } from "./curated-papers";
+import { normalizePaperTitle } from "./deduplicate-papers";
 import {
   PRIORITY_REGION_OPENALEX_QUERIES,
 } from "./priority-regions";
@@ -410,8 +411,8 @@ function mergePaperLists(
       if (merged.length >= maxTotal) break;
 
       const idKey = paper.openAlexId ?? paper.id;
-      const titleKey = paper.title.trim().toLowerCase();
-      if (seenIds.has(idKey) || seenTitles.has(titleKey)) continue;
+      const titleKey = normalizePaperTitle(paper.title);
+      if (!titleKey || seenIds.has(idKey) || seenTitles.has(titleKey)) continue;
 
       seenIds.add(idKey);
       seenTitles.add(titleKey);
