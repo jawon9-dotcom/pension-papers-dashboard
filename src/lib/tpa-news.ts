@@ -1,8 +1,9 @@
 import { Paper, MainCategory, SubCategory } from "@/types/paper";
 import { inferCountryFromText } from "./country";
 import { getSourceSiteLabel } from "./source";
-import { FetchPeriod, TPA_NEWS_MAX } from "./period";
+import { FetchPeriod, MAX_KOREA_DOMESTIC_NEWS, TPA_NEWS_MAX } from "./period";
 import { hasTrueTpaSignal } from "./relevance";
+import { isExcludedRegionPaper } from "./paper-region-filter";
 import {
   hasSaaSignal,
   hasTaaSignal,
@@ -13,15 +14,21 @@ import {
   KOREA_GOOGLE_NEWS_RSS_SEARCHES,
   KOREA_NPS_NEWS_SEARCHES,
   hasKoreaPensionSignal,
-  isKoreaNpsNews,
 } from "./korea-regions";
+import {
+  GLOBAL_GOOGLE_NEWS_RSS_SEARCHES,
+  GLOBAL_PENSION_TREND_NEWS_SEARCHES,
+  hasGlobalPensionTrendSignal,
+  isGlobalPensionNews,
+  isKoreaDomesticNews,
+} from "./global-pension-trends";
 import { isServerlessEnv } from "./server-env";
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
 const NEWS_API_BASE = "https://newsapi.org/v2/everything";
 
 const PENSION_NEWS_SEARCHES = [
-  ...KOREA_NPS_NEWS_SEARCHES,
+  ...GLOBAL_PENSION_TREND_NEWS_SEARCHES,
   ...PRIORITY_REGION_NEWS_SEARCHES,
   "total portfolio approach pension",
   "reference portfolio pension fund",
@@ -37,6 +44,7 @@ const PENSION_NEWS_SEARCHES = [
   "institutional pension portfolio",
   "sovereign pension fund investment",
   "public pension asset allocation",
+  ...KOREA_NPS_NEWS_SEARCHES,
   "국민연금 운용",
   "연기금 투자 전략",
   "연기금 포트폴리오",
@@ -288,6 +296,7 @@ function isPensionNewsCandidate(title: string, description: string): boolean {
   const text = `${title} ${description}`.toLowerCase();
 
   if (hasTrueTpaSignal(title, text)) return true;
+  if (hasGlobalPensionTrendSignal(`${title} ${description}`)) return true;
   if (text.includes("국민연금")) return true;
   if (hasKoreaPensionSignal(`${title} ${description}`)) {
     return (
@@ -364,6 +373,16 @@ function categorizeNewsArticle(
   }
 
   if (
+    (text.includes("factor") || text.includes("팩터")) &&
+    (text.includes("allocation") ||
+      text.includes("investing") ||
+      text.includes("자산배분") ||
+      text.includes("운용"))
+  ) {
+    return { category: "asset-allocation", subCategory: "saa" };
+  }
+
+  if (
     text.includes("private equity") ||
     text.includes("alternative investment") ||
     text.includes("alternatives") ||
@@ -436,6 +455,15 @@ function mapNewsToPaper(
   if (urlHostname === "news.google.com" && !input.publisherUrl) return null;
   if (!isTrustedNewsPublisher(trustUrl, title, input.description)) return null;
   if (!isPensionNewsCandidate(title, input.description)) return null;
+  if (
+    isExcludedRegionPaper({
+      title,
+      abstract: input.description,
+      journal: input.sourceLabel,
+    })
+  ) {
+    return null;
+  }
 
   const { category, subCategory } = categorizeNewsArticle(
     title,
@@ -838,6 +866,7 @@ async function fetchSingleGoogleNewsRssQuery(
 async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
   const searches: Array<{ query: string; hl: string; gl: string; ceid: string }> =
     [
+      ...GLOBAL_GOOGLE_NEWS_RSS_SEARCHES,
       ...KOREA_GOOGLE_NEWS_RSS_SEARCHES,
       {
         query: "total+portfolio+approach+pension",
@@ -902,6 +931,22 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
   return papers;
 }
 
+function getNewsRankScore(paper: Paper): number {
+  let score = paper.popularityScore ?? 0;
+  if (isFinancialNewsDomain(paper.originalUrl)) score += 300;
+  if (isGlobalPensionNews(paper)) score += 220;
+  if (hasGlobalPensionTrendSignal(`${paper.title} ${paper.abstract}`)) {
+    score += 180;
+  }
+  if (
+    paper.category === "asset-management" &&
+    paper.subCategory === "alternative"
+  ) {
+    score += 120;
+  }
+  return score;
+}
+
 function mergeFetchedNews(sources: Paper[][]): Paper[] {
   const seenUrls = new Set<string>();
   const seenTitles = new Set<string>();
@@ -917,20 +962,36 @@ function mergeFetchedNews(sources: Paper[][]): Paper[] {
     merged.push(paper);
   }
 
-  merged.sort(
-    (a, b) => {
-      const aKr = isKoreaNpsNews(a) ? 1 : 0;
-      const bKr = isKoreaNpsNews(b) ? 1 : 0;
-      if (bKr !== aKr) return bKr - aKr;
+  const koreaDomestic = merged
+    .filter(isKoreaDomesticNews)
+    .sort((a, b) => getNewsRankScore(b) - getNewsRankScore(a));
+  const globalNews = merged
+    .filter((paper) => !isKoreaDomesticNews(paper))
+    .sort((a, b) => getNewsRankScore(b) - getNewsRankScore(a));
 
-      return (
-        (b.popularityScore ?? 0) - (a.popularityScore ?? 0) ||
-        b.year - a.year
-      );
+  const koreaPick = koreaDomestic.slice(0, MAX_KOREA_DOMESTIC_NEWS);
+  const globalSlots = Math.max(TPA_NEWS_MAX - koreaPick.length, TPA_NEWS_MAX - MAX_KOREA_DOMESTIC_NEWS);
+  const globalPick = globalNews.slice(0, globalSlots);
+
+  const combined = [...globalPick, ...koreaPick];
+  if (combined.length < TPA_NEWS_MAX) {
+    const pickedUrls = new Set(combined.map((paper) => paper.originalUrl.toLowerCase()));
+    for (const paper of [...globalNews.slice(globalPick.length), ...koreaDomestic.slice(koreaPick.length)]) {
+      if (combined.length >= TPA_NEWS_MAX) break;
+      const urlKey = paper.originalUrl.toLowerCase();
+      if (pickedUrls.has(urlKey)) continue;
+      pickedUrls.add(urlKey);
+      combined.push(paper);
     }
+  }
+
+  combined.sort(
+    (a, b) =>
+      getNewsRankScore(b) - getNewsRankScore(a) ||
+      b.year - a.year
   );
 
-  return merged.slice(0, TPA_NEWS_MAX);
+  return combined.slice(0, TPA_NEWS_MAX);
 }
 
 export async function fetchTpaNewsArticles(

@@ -77,6 +77,40 @@ const RUSSIA_EASTERN_EUROPE_TEXT_PATTERNS: RegExp[] = [
   /\bpost-soviet\b/i,
 ];
 
+export const EXCLUDED_ASIA_PENSION_COUNTRY_CODES = new Set(["CN", "MY"]);
+
+const EXCLUDED_ASIA_PENSION_TEXT_PATTERNS: RegExp[] = [
+  /\bchina\b/i,
+  /\bchinese\b/i,
+  /\bchina pension\b/i,
+  /\bchinese pension\b/i,
+  /\bnational social security fund china\b/i,
+  /\bmalaysia\b/i,
+  /\bmalaysian\b/i,
+  /\bmalaysia pension\b/i,
+  /\bepf malaysia\b/i,
+  /\bkwsp\b/i,
+  /\bemployees provident fund malaysia\b/i,
+];
+
+export function isExcludedAsiaPensionPaper(
+  paper: Pick<Paper, "title" | "abstract" | "journal" | "countryCode">
+): boolean {
+  const countryCode = resolveCountryCode(paper)?.toUpperCase();
+  if (countryCode && EXCLUDED_ASIA_PENSION_COUNTRY_CODES.has(countryCode)) {
+    return true;
+  }
+
+  const text = `${paper.title} ${paper.abstract} ${paper.journal}`;
+  if (!/(pension|retirement|provident fund|연금|연기금)/i.test(text)) {
+    return false;
+  }
+
+  return EXCLUDED_ASIA_PENSION_TEXT_PATTERNS.some((pattern) =>
+    pattern.test(text)
+  );
+}
+
 export function isRussiaEasternEuropePaper(
   paper: Pick<Paper, "title" | "abstract" | "journal" | "countryCode">
 ): boolean {
@@ -94,7 +128,11 @@ export function isRussiaEasternEuropePaper(
 export function isExcludedRegionPaper(
   paper: Pick<Paper, "title" | "abstract" | "journal" | "countryCode">
 ): boolean {
-  return isAfricanPaper(paper) || isRussiaEasternEuropePaper(paper);
+  return (
+    isAfricanPaper(paper) ||
+    isRussiaEasternEuropePaper(paper) ||
+    isExcludedAsiaPensionPaper(paper)
+  );
 }
 
 export function filterExcludedRegionPapers<T extends Paper>(papers: T[]): T[] {

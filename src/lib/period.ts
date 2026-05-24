@@ -1,7 +1,8 @@
 export const DEFAULT_YEAR_FROM = 2022;
 export const PAPERS_PER_YEAR = 50;
 export const MAX_PAPERS_CAP = 500;
-export const TPA_NEWS_MAX = 65;
+export const TPA_NEWS_MAX = 80;
+export const MAX_KOREA_DOMESTIC_NEWS = 18;
 
 export function getDefaultYearTo(): number {
   return new Date().getFullYear();

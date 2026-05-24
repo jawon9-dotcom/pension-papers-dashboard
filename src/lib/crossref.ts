@@ -15,6 +15,7 @@ import {
 import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
 import { PRIORITY_REGION_CROSSREF_QUERIES } from "./priority-regions";
 import { KOREA_CROSSREF_QUERIES } from "./korea-regions";
+import { GLOBAL_TREND_CROSSREF_QUERIES } from "./global-pension-trends";
 
 const CROSSREF_BASE = "https://api.crossref.org/works";
 const CONTACT_EMAIL =
@@ -33,18 +34,21 @@ function interleaveCrossRefQueries(
   const tpa = specs.filter((spec) => spec.mode === "tpa");
   const priority = specs.filter((spec) => spec.mode === "priority");
   const korea = specs.filter((spec) => spec.mode === "korea");
+  const globalTrend = specs.filter((spec) => spec.mode === "global-trend");
   const interleaved: CrossRefQuerySpec[] = [];
   const maxLen = Math.max(
     academic.length,
     industry.length,
     tpa.length,
     priority.length,
-    korea.length
+    korea.length,
+    globalTrend.length
   );
 
   for (let index = 0; index < maxLen; index++) {
-    if (korea[index]) interleaved.push(korea[index]);
+    if (globalTrend[index]) interleaved.push(globalTrend[index]);
     if (priority[index]) interleaved.push(priority[index]);
+    if (korea[index]) interleaved.push(korea[index]);
     if (academic[index]) interleaved.push(academic[index]);
     if (industry[index]) interleaved.push(industry[index]);
     if (tpa[index]) interleaved.push(tpa[index]);
@@ -54,6 +58,7 @@ function interleaveCrossRefQueries(
 }
 
 const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
+  ...GLOBAL_TREND_CROSSREF_QUERIES,
   ...KOREA_CROSSREF_QUERIES,
   ...PRIORITY_REGION_CROSSREF_QUERIES,
   { query: "pension fund asset allocation", mode: "default" },
@@ -99,6 +104,9 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
 ]);
 
 const CORE_CROSSREF_QUERIES: CrossRefQuerySpec[] = [
+  { query: "pension fund private equity allocation", mode: "global-trend" },
+  { query: "pension fund alternative investment portfolio", mode: "global-trend" },
+  { query: "factor based asset allocation pension fund", mode: "global-trend" },
   { query: "national pension service korea asset allocation", mode: "korea" },
   { query: "korea pension fund investment strategy", mode: "korea" },
   { query: "calpers pension asset allocation", mode: "priority" },

@@ -1,8 +1,9 @@
 import { hasSaaSignal, hasTaaSignal } from "./allocation-signals";
 import { hasPriorityRegionSignal } from "./priority-regions";
 import { hasKoreaPensionSignal } from "./korea-regions";
+import { hasGlobalPensionTrendSignal } from "./global-pension-trends";
 
-export type RelevanceMode = "default" | "industry" | "tpa" | "priority" | "korea";
+export type RelevanceMode = "default" | "industry" | "tpa" | "priority" | "korea" | "global-trend";
 
 const PENSION_CORE = [
   "pension",
@@ -138,6 +139,7 @@ export function scorePaperRelevance(title: string, abstract: string): number {
   if (hasTaaSignal(title, text)) score += 8;
   if (hasPriorityRegionSignal(text)) score += 12;
   if (hasKoreaPensionSignal(text)) score += 14;
+  if (hasGlobalPensionTrendSignal(text)) score += 16;
   if (
     titleLower.includes("benchmark") &&
     (text.includes("pension") || text.includes("manager evaluation"))
@@ -288,6 +290,17 @@ export function isPaperRelevant(
       INSTITUTIONAL_CORE.some((kw) => text.includes(kw)) ||
       FINANCE_CONTEXT.some((kw) => text.includes(kw)) ||
       relevanceScore >= 6
+    );
+  }
+
+  if (mode === "global-trend") {
+    if (!hasGlobalPensionTrendSignal(text)) return false;
+
+    return (
+      PENSION_CORE.some((kw) => text.includes(kw)) ||
+      INSTITUTIONAL_CORE.some((kw) => text.includes(kw)) ||
+      FINANCE_CONTEXT.some((kw) => text.includes(kw)) ||
+      relevanceScore >= 8
     );
   }
 

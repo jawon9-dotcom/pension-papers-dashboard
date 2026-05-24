@@ -24,6 +24,10 @@ import {
   PRIORITY_REGION_OPENALEX_QUERIES,
 } from "./priority-regions";
 import { KOREA_OPENALEX_QUERIES } from "./korea-regions";
+import {
+  GLOBAL_TREND_OPENALEX_QUERIES,
+  hasGlobalPensionTrendSignal,
+} from "./global-pension-trends";
 import { isKoreanPublication } from "./korean-publication";
 import { appendTpaNewsArticles, fetchTpaNewsArticles } from "./tpa-news";
 
@@ -44,18 +48,21 @@ function interleaveQuerySpecs(
   const tpa = specs.filter((spec) => spec.mode === "tpa");
   const priority = specs.filter((spec) => spec.mode === "priority");
   const korea = specs.filter((spec) => spec.mode === "korea");
+  const globalTrend = specs.filter((spec) => spec.mode === "global-trend");
   const interleaved: OpenAlexQuerySpec[] = [];
   const maxLen = Math.max(
     academic.length,
     industry.length,
     tpa.length,
     priority.length,
-    korea.length
+    korea.length,
+    globalTrend.length
   );
 
   for (let index = 0; index < maxLen; index++) {
-    if (korea[index]) interleaved.push(korea[index]);
+    if (globalTrend[index]) interleaved.push(globalTrend[index]);
     if (priority[index]) interleaved.push(priority[index]);
+    if (korea[index]) interleaved.push(korea[index]);
     if (academic[index]) interleaved.push(academic[index]);
     if (industry[index]) interleaved.push(industry[index]);
     if (tpa[index]) interleaved.push(tpa[index]);
@@ -65,6 +72,7 @@ function interleaveQuerySpecs(
 }
 
 const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
+  ...GLOBAL_TREND_OPENALEX_QUERIES,
   ...KOREA_OPENALEX_QUERIES,
   ...PRIORITY_REGION_OPENALEX_QUERIES,
   { filter: "title.search:pension fund", mode: "default" },
@@ -152,6 +160,9 @@ const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
 ]);
 
 const CORE_OPENALEX_QUERIES: OpenAlexQuerySpec[] = [
+  { filter: "title.search:pension fund private equity", mode: "global-trend" },
+  { filter: "title.search:pension fund alternative investment", mode: "global-trend" },
+  { filter: "title.search:factor based asset allocation pension", mode: "global-trend" },
   { filter: "title.search:national pension service korea", mode: "korea" },
   { filter: "title.search:korea pension fund asset allocation", mode: "korea" },
   { filter: "default.search:pension fund asset allocation,authorships.institutions.country_code:kr", mode: "korea" },
@@ -409,6 +420,10 @@ function mergePaperLists(
   }
 
   merged.sort((a, b) => {
+    const aTrend = hasGlobalPensionTrendSignal(`${a.title} ${a.abstract}`) ? 1 : 0;
+    const bTrend = hasGlobalPensionTrendSignal(`${b.title} ${b.abstract}`) ? 1 : 0;
+    if (bTrend !== aTrend) return bTrend - aTrend;
+
     const aKr = isKoreanPublication(a) ? 1 : 0;
     const bKr = isKoreanPublication(b) ? 1 : 0;
     if (bKr !== aKr) return bKr - aKr;
