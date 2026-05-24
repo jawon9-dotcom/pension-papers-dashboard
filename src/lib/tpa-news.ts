@@ -9,12 +9,19 @@ import {
   resolveSaaTaaSubCategory,
 } from "./allocation-signals";
 import { PRIORITY_REGION_NEWS_SEARCHES } from "./priority-regions";
+import {
+  KOREA_GOOGLE_NEWS_RSS_SEARCHES,
+  KOREA_NPS_NEWS_SEARCHES,
+  hasKoreaPensionSignal,
+  isKoreaNpsNews,
+} from "./korea-regions";
 import { isServerlessEnv } from "./server-env";
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
 const NEWS_API_BASE = "https://newsapi.org/v2/everything";
 
 const PENSION_NEWS_SEARCHES = [
+  ...KOREA_NPS_NEWS_SEARCHES,
   ...PRIORITY_REGION_NEWS_SEARCHES,
   "total portfolio approach pension",
   "reference portfolio pension fund",
@@ -57,6 +64,8 @@ const KOREAN_TRUSTED_NEWS_DOMAINS = [
   "koreatimes.co.kr",
   "thebell.co.kr",
   "nspna.com",
+  "nps.or.kr",
+  "nps.go.kr",
   "newsis.com",
   "newspim.com",
   "ajunews.com",
@@ -279,6 +288,24 @@ function isPensionNewsCandidate(title: string, description: string): boolean {
   const text = `${title} ${description}`.toLowerCase();
 
   if (hasTrueTpaSignal(title, text)) return true;
+  if (text.includes("국민연금")) return true;
+  if (hasKoreaPensionSignal(`${title} ${description}`)) {
+    return (
+      text.includes("invest") ||
+      text.includes("portfolio") ||
+      text.includes("asset") ||
+      text.includes("fund") ||
+      text.includes("allocation") ||
+      text.includes("strategy") ||
+      text.includes("운용") ||
+      text.includes("투자") ||
+      text.includes("포트폴리오") ||
+      text.includes("자산") ||
+      text.includes("배분") ||
+      text.includes("수익") ||
+      text.includes("기금")
+    );
+  }
 
   const hasPensionContext =
     text.includes("pension") ||
@@ -433,7 +460,9 @@ function mapNewsToPaper(
     summaryKo: "",
     originalUrl: input.url,
     hasAiSummary: false,
-    countryCode: inferCountryFromText(`${title} ${abstract}`),
+    countryCode:
+      inferCountryFromText(`${title} ${abstract}`) ??
+      (title.includes("국민연금") || abstract.includes("국민연금") ? "KR" : undefined),
     citationCount: 0,
     sourceSite: getSourceSiteLabel(trustUrl),
     publicationType: "news article",
@@ -809,6 +838,7 @@ async function fetchSingleGoogleNewsRssQuery(
 async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
   const searches: Array<{ query: string; hl: string; gl: string; ceid: string }> =
     [
+      ...KOREA_GOOGLE_NEWS_RSS_SEARCHES,
       {
         query: "total+portfolio+approach+pension",
         hl: "en-US",
@@ -845,18 +875,6 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
         gl: "US",
         ceid: "US:en",
       },
-      {
-        query: encodeURIComponent("국민연금+투자+전략"),
-        hl: "ko",
-        gl: "KR",
-        ceid: "KR:ko",
-      },
-      {
-        query: encodeURIComponent("연기금+포트폴리오+운용"),
-        hl: "ko",
-        gl: "KR",
-        ceid: "KR:ko",
-      },
     ];
 
   const results = await Promise.allSettled(
@@ -890,8 +908,6 @@ function mergeFetchedNews(sources: Paper[][]): Paper[] {
   const merged: Paper[] = [];
 
   for (const paper of sources.flat()) {
-    if (merged.length >= TPA_NEWS_MAX) break;
-
     const urlKey = paper.originalUrl.toLowerCase();
     const titleKey = paper.title.toLowerCase();
     if (seenUrls.has(urlKey) || seenTitles.has(titleKey)) continue;
@@ -902,9 +918,16 @@ function mergeFetchedNews(sources: Paper[][]): Paper[] {
   }
 
   merged.sort(
-    (a, b) =>
-      (b.popularityScore ?? 0) - (a.popularityScore ?? 0) ||
-      b.year - a.year
+    (a, b) => {
+      const aKr = isKoreaNpsNews(a) ? 1 : 0;
+      const bKr = isKoreaNpsNews(b) ? 1 : 0;
+      if (bKr !== aKr) return bKr - aKr;
+
+      return (
+        (b.popularityScore ?? 0) - (a.popularityScore ?? 0) ||
+        b.year - a.year
+      );
+    }
   );
 
   return merged.slice(0, TPA_NEWS_MAX);

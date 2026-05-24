@@ -14,6 +14,7 @@ import {
 } from "./period";
 import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
 import { PRIORITY_REGION_CROSSREF_QUERIES } from "./priority-regions";
+import { KOREA_CROSSREF_QUERIES } from "./korea-regions";
 
 const CROSSREF_BASE = "https://api.crossref.org/works";
 const CONTACT_EMAIL =
@@ -31,15 +32,18 @@ function interleaveCrossRefQueries(
   const industry = specs.filter((spec) => spec.mode === "industry");
   const tpa = specs.filter((spec) => spec.mode === "tpa");
   const priority = specs.filter((spec) => spec.mode === "priority");
+  const korea = specs.filter((spec) => spec.mode === "korea");
   const interleaved: CrossRefQuerySpec[] = [];
   const maxLen = Math.max(
     academic.length,
     industry.length,
     tpa.length,
-    priority.length
+    priority.length,
+    korea.length
   );
 
   for (let index = 0; index < maxLen; index++) {
+    if (korea[index]) interleaved.push(korea[index]);
     if (priority[index]) interleaved.push(priority[index]);
     if (academic[index]) interleaved.push(academic[index]);
     if (industry[index]) interleaved.push(industry[index]);
@@ -50,6 +54,7 @@ function interleaveCrossRefQueries(
 }
 
 const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
+  ...KOREA_CROSSREF_QUERIES,
   ...PRIORITY_REGION_CROSSREF_QUERIES,
   { query: "pension fund asset allocation", mode: "default" },
   { query: "pension fund strategic asset allocation", mode: "default" },
@@ -94,6 +99,8 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
 ]);
 
 const CORE_CROSSREF_QUERIES: CrossRefQuerySpec[] = [
+  { query: "national pension service korea asset allocation", mode: "korea" },
+  { query: "korea pension fund investment strategy", mode: "korea" },
   { query: "calpers pension asset allocation", mode: "priority" },
   { query: "cppib pension portfolio management", mode: "priority" },
   { query: "gpif pension asset allocation", mode: "priority" },

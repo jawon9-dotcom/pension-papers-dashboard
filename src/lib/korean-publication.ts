@@ -24,8 +24,13 @@ const KOREAN_PUBLISHER_PATTERNS = [
   /금융연구/,
   /재무연구/,
   /\bKCI\b/,
-  /연기금.*한국/,
-  /한국.*연기금/,
+  /국민연금기금/,
+  /NPS\b/,
+  /national pension service/i,
+  /korea pension/i,
+  /korean pension/i,
+  /한국투자증권/,
+  /한국은행/,
 ];
 
 export function isKoreanPublisherUrl(url: string): boolean {

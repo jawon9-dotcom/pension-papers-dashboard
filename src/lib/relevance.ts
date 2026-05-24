@@ -1,7 +1,8 @@
 import { hasSaaSignal, hasTaaSignal } from "./allocation-signals";
 import { hasPriorityRegionSignal } from "./priority-regions";
+import { hasKoreaPensionSignal } from "./korea-regions";
 
-export type RelevanceMode = "default" | "industry" | "tpa" | "priority";
+export type RelevanceMode = "default" | "industry" | "tpa" | "priority" | "korea";
 
 const PENSION_CORE = [
   "pension",
@@ -136,6 +137,7 @@ export function scorePaperRelevance(title: string, abstract: string): number {
   if (hasSaaSignal(title, text)) score += 8;
   if (hasTaaSignal(title, text)) score += 8;
   if (hasPriorityRegionSignal(text)) score += 12;
+  if (hasKoreaPensionSignal(text)) score += 14;
   if (
     titleLower.includes("benchmark") &&
     (text.includes("pension") || text.includes("manager evaluation"))
@@ -278,6 +280,17 @@ export function isPaperRelevant(
     );
   }
 
+  if (mode === "korea") {
+    if (!hasKoreaPensionSignal(text)) return false;
+
+    return (
+      PENSION_CORE.some((kw) => text.includes(kw)) ||
+      INSTITUTIONAL_CORE.some((kw) => text.includes(kw)) ||
+      FINANCE_CONTEXT.some((kw) => text.includes(kw)) ||
+      relevanceScore >= 6
+    );
+  }
+
   if (
     titleLower.includes("benchmark") &&
     titleLower.includes("pension") &&
@@ -295,6 +308,12 @@ export function isPaperRelevant(
       relevanceScore >= 10)
   ) {
     return true;
+  }
+
+  if (hasKoreaPensionSignal(text)) {
+    return (
+      FINANCE_CONTEXT.some((kw) => text.includes(kw)) || relevanceScore >= 10
+    );
   }
 
   if (PENSION_CORE.some((kw) => text.includes(kw))) {
