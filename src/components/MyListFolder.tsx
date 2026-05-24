@@ -66,45 +66,32 @@ export function MyListFolder({
               >
                 <div className="shrink-0 border-b border-slate-600 bg-[#0f172a] px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white">
-                        나의 목록
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">
-                        체크한 논문·기사가 브라우저에 저장됩니다.
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {items.length > 0 && (
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-white">
+                          나의 목록
+                        </p>
                         <button
                           type="button"
-                          onClick={onClear}
-                          className="rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:text-red-300"
+                          onClick={() => setOpen(false)}
+                          className="rounded-lg border border-slate-600 bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-700 hover:text-white"
                         >
-                          전체 삭제
+                          닫기
                         </button>
-                      )}
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        체크한 논문 기사가 폴더에 저장됩니다.
+                      </p>
+                    </div>
+                    {items.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setOpen(false)}
-                        aria-label="목록 닫기"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        onClick={onClear}
+                        className="shrink-0 rounded-lg border border-slate-600 bg-slate-800 px-2 py-1 text-[11px] text-slate-300 hover:text-red-300"
                       >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
+                        전체 삭제
                       </button>
-                    </div>
+                    )}
                   </div>
                 </div>
 

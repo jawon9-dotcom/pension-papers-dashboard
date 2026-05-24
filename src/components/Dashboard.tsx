@@ -667,7 +667,7 @@ function Stat({
         {label}
       </button>
       {subCategories && subCategories.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+        <div className="mt-2 flex flex-wrap justify-center gap-1.5">
           {subCategories.map((sub) => {
             const isSubActive = isActive && activeSubCategory === sub;
             return (
@@ -676,10 +676,11 @@ function Stat({
                 type="button"
                 onClick={() => onSubCategoryClick(category, sub)}
                 aria-pressed={isSubActive}
-                className={`rounded-md border px-1.5 py-0.5 text-[9px] font-medium transition sm:text-[10px] ${
+                title={`${SUB_CATEGORY_LABELS[sub]}만 보기`}
+                className={`min-h-7 rounded-lg border px-2.5 py-1 text-[10px] font-semibold shadow-sm transition sm:min-h-8 sm:px-3 sm:text-[11px] ${
                   isSubActive
-                    ? chipActiveClass
-                    : "border-transparent text-slate-600 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-400"
+                    ? `${chipActiveClass} ring-1 ring-inset ring-white/10`
+                    : "border-slate-600 bg-slate-800 text-slate-200 hover:border-slate-500 hover:bg-slate-700 hover:text-white"
                 }`}
               >
                 {SUB_CATEGORY_LABELS[sub]}
