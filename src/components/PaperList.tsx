@@ -8,6 +8,7 @@ import {
   CATEGORY_LABELS,
   SUB_CATEGORY_LABELS,
   CATEGORY_COLORS,
+  getPublicationSourceLabel,
 } from "@/types/paper";
 import { AbstractPopup } from "./AbstractPopup";
 import { CountryFlag } from "./CountryFlag";
@@ -129,6 +130,10 @@ export function PaperList({
               </h3>
               <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-500 sm:mt-1 sm:line-clamp-1 sm:text-xs">
                 {paper.authors.join(", ")}
+                <span className="text-slate-600"> · </span>
+                <span className="text-slate-400">
+                  {getPublicationSourceLabel(paper)}
+                </span>
               </p>
             </button>
           );

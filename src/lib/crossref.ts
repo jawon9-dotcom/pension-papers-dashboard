@@ -27,6 +27,14 @@ const SEARCH_QUERIES = [
   "defined benefit pension liability driven investment",
   "public pension fund governance",
   "institutional pension portfolio management",
+  "pension fund white paper",
+  "retirement plan investment policy statement",
+  "pension industry research report",
+  "asset owner pension strategy",
+  "pension fund annual investment report",
+  "sovereign pension fund portfolio",
+  "pension fund strategic asset allocation",
+  "pension fund reference portfolio",
 ];
 
 interface CrossRefAuthor {
@@ -44,6 +52,7 @@ interface CrossRefItem {
   URL?: string;
   link?: { URL: string; "content-type"?: string }[];
   "is-referenced-by-count"?: number;
+  type?: string;
 }
 
 interface CrossRefResponse {
@@ -65,7 +74,16 @@ function stripHtml(html: string): string {
 
 function isRelevant(title: string, abstract: string): boolean {
   const text = `${title} ${abstract}`.toLowerCase();
-  const core = ["pension", "retirement", "superannuation", "provident fund"];
+  const core = [
+    "pension",
+    "retirement",
+    "superannuation",
+    "provident fund",
+    "endowment",
+    "sovereign wealth",
+    "public pension",
+    "defined benefit",
+  ];
   return core.some((kw) => text.includes(kw));
 }
 
@@ -131,6 +149,7 @@ function mapItemToPaper(
     countryCode,
     citationCount: item["is-referenced-by-count"] ?? 0,
     sourceSite: getSourceSiteLabel(originalUrl),
+    publicationType: item.type?.replace(/-/g, " ") ?? undefined,
   };
 }
 
@@ -144,7 +163,7 @@ async function fetchQuery(
     rows: String(rows),
     sort: "published",
     order: "desc",
-    filter: `from-pub-date:${year}-01-01,until-pub-date:${year}-12-31,type:journal-article`,
+    filter: `from-pub-date:${year}-01-01,until-pub-date:${year}-12-31`,
   });
 
   const res = await fetch(`${CROSSREF_BASE}?${params}`, {

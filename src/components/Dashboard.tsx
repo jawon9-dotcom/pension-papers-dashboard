@@ -125,7 +125,8 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
       if (activeCategory !== "all" && p.category !== activeCategory)
         return false;
       if (
-        activeCategory === "asset-management" &&
+        (activeCategory === "asset-management" ||
+          activeCategory === "asset-allocation") &&
         activeSubCategory !== "all" &&
         p.subCategory !== activeSubCategory
       )
@@ -161,7 +162,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
 
   const handleCategoryChange = (cat: MainCategory | "all") => {
     setActiveCategory(cat);
-    if (cat !== "asset-management") {
+    if (cat !== "asset-management" && cat !== "asset-allocation") {
       setActiveSubCategory("all");
     }
   };
@@ -254,7 +255,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
             </span>
           </button>
           <div className="hidden items-center gap-4 md:flex">
-            <Stat label="자산배분" value={counts["asset-allocation"]} color="text-emerald-400" />
+            <Stat label="운용전략" value={counts["asset-allocation"]} color="text-emerald-400" />
             <Stat label="자산운용" value={counts["asset-management"]} color="text-blue-400" />
             <Stat label="리스크관리" value={counts["risk-management"]} color="text-amber-400" />
             <Stat label="성과평가" value={counts["performance-evaluation"]} color="text-violet-400" />
@@ -263,7 +264,7 @@ export function Dashboard({ initialPapers, initialMeta }: DashboardProps) {
       </header>
 
       <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-800 px-4 py-2 md:hidden">
-        <Stat label="자산배분" value={counts["asset-allocation"]} color="text-emerald-400" compact />
+        <Stat label="운용전략" value={counts["asset-allocation"]} color="text-emerald-400" compact />
         <Stat label="자산운용" value={counts["asset-management"]} color="text-blue-400" compact />
         <Stat label="리스크관리" value={counts["risk-management"]} color="text-amber-400" compact />
         <Stat label="성과평가" value={counts["performance-evaluation"]} color="text-violet-400" compact />

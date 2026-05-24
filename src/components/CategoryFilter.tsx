@@ -3,6 +3,8 @@
 import {
   MainCategory,
   SubCategory,
+  AllocationSubCategory,
+  ManagementSubCategory,
   CATEGORY_LABELS,
   SUB_CATEGORY_LABELS,
 } from "@/types/paper";
@@ -23,22 +25,20 @@ const categories: (MainCategory | "all")[] = [
   "performance-evaluation",
 ];
 
-const categoryLabels: Record<MainCategory | "all", string> = {
-  all: "전체",
-  ...CATEGORY_LABELS,
-};
+const allocationSubCategories: (AllocationSubCategory | "all")[] = [
+  "all",
+  "saa",
+  "taa",
+  "tpa",
+  "strategy-general",
+];
 
-const subCategories: (SubCategory | "all")[] = [
+const managementSubCategories: (ManagementSubCategory | "all")[] = [
   "all",
   "equity",
   "bond",
   "alternative",
 ];
-
-const subLabels: Record<SubCategory | "all", string> = {
-  all: "전체",
-  ...SUB_CATEGORY_LABELS,
-};
 
 export function CategoryFilter({
   activeCategory,
@@ -47,6 +47,18 @@ export function CategoryFilter({
   onSubCategoryChange,
   counts,
 }: CategoryFilterProps) {
+  const subCategories =
+    activeCategory === "asset-allocation"
+      ? allocationSubCategories
+      : activeCategory === "asset-management"
+        ? managementSubCategories
+        : null;
+
+  const subTitle =
+    activeCategory === "asset-allocation"
+      ? "운용전략 하위 분류"
+      : "자산운용 하위 분류";
+
   return (
     <div className="border-b border-slate-800 p-3 space-y-3 sm:p-4">
       <div>
@@ -65,17 +77,17 @@ export function CategoryFilter({
                   : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
               }`}
             >
-              {categoryLabels[cat]}
+              {cat === "all" ? "전체" : CATEGORY_LABELS[cat]}
               <span className="ml-1 opacity-60">({counts[cat] ?? 0})</span>
             </button>
           ))}
         </div>
       </div>
 
-      {activeCategory === "asset-management" && (
+      {subCategories && (
         <div>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-            자산운용 하위 분류
+            {subTitle}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {subCategories.map((sub) => (
@@ -89,7 +101,9 @@ export function CategoryFilter({
                     : "bg-slate-800/60 text-slate-400 hover:bg-slate-700 hover:text-slate-200 border border-transparent"
                 }`}
               >
-                {subLabels[sub]}
+                {sub === "all"
+                  ? "전체"
+                  : SUB_CATEGORY_LABELS[sub as SubCategory]}
               </button>
             ))}
           </div>

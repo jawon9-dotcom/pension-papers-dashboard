@@ -10,6 +10,7 @@ export const papers: Paper[] = [
     year: 2024,
     journal: "Journal of Pension Economics & Finance",
     category: "asset-allocation",
+    subCategory: "saa",
     abstract:
       "This paper examines dynamic asset allocation strategies for large public pension funds facing demographic shifts and low-yield environments. Using a liability-driven investment framework, we show that adaptive glide paths outperform static allocation policies by 80-120 basis points annually over a 20-year horizon.",
     abstractKo:
@@ -29,6 +30,7 @@ export const papers: Paper[] = [
     year: 2025,
     journal: "Financial Analysts Journal",
     category: "asset-allocation",
+    subCategory: "saa",
     abstract:
       "We propose a factor-based strategic asset allocation model for global pension funds that integrates macroeconomic regime detection with risk parity principles. Backtests across 15 OECD pension systems demonstrate improved Sharpe ratios and reduced maximum drawdowns.",
     abstractKo:
@@ -276,6 +278,7 @@ export const papers: Paper[] = [
     year: 2025,
     journal: "Journal of Retirement",
     category: "asset-allocation",
+    subCategory: "strategy-general",
     abstract:
       "Target date fund glide paths for public sector pension systems must balance de-risking speed with longevity risk. We compare linear, front-loaded, and back-loaded glide paths using Monte Carlo simulation over 40-year horizons.",
     abstractKo:
@@ -293,7 +296,7 @@ export function getPapersByCategory(
   return papers.filter((p) => {
     if (category !== "all" && p.category !== category) return false;
     if (
-      category === "asset-management" &&
+      (category === "asset-management" || category === "asset-allocation") &&
       subCategory &&
       subCategory !== "all" &&
       p.subCategory !== subCategory

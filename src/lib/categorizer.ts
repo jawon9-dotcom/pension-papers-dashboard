@@ -1,4 +1,9 @@
-import { MainCategory, SubCategory } from "@/types/paper";
+import {
+  AllocationSubCategory,
+  MainCategory,
+  ManagementSubCategory,
+  SubCategory,
+} from "@/types/paper";
 
 interface CategoryRule {
   category: MainCategory;
@@ -42,18 +47,58 @@ const RULES: CategoryRule[] = [
   },
   {
     category: "asset-allocation",
+    subCategory: "saa",
+    keywords: [
+      "strategic asset allocation",
+      "strategic allocation",
+      "saa",
+      "policy portfolio",
+      "long-term allocation",
+      "policy benchmark",
+    ],
+    weight: 1.4,
+  },
+  {
+    category: "asset-allocation",
+    subCategory: "taa",
+    keywords: [
+      "tactical asset allocation",
+      "tactical allocation",
+      "taa",
+      "dynamic asset allocation",
+      "overlay strategy",
+      "market timing",
+    ],
+    weight: 1.4,
+  },
+  {
+    category: "asset-allocation",
+    subCategory: "tpa",
+    keywords: [
+      "total portfolio approach",
+      "reference portfolio",
+      "factor-based portfolio",
+      "liability-aware",
+      "holistic portfolio",
+      "tpa",
+      "reference portfolio approach",
+    ],
+    weight: 1.5,
+  },
+  {
+    category: "asset-allocation",
+    subCategory: "strategy-general",
     keywords: [
       "asset allocation",
-      "strategic allocation",
       "glide path",
       "rebalancing",
       "portfolio construction",
       "target date",
-      "saa",
-      "tactical allocation",
       "allocation policy",
+      "investment policy",
+      "portfolio strategy",
     ],
-    weight: 1.3,
+    weight: 1.2,
   },
   {
     category: "asset-management",
@@ -107,6 +152,21 @@ function scoreRule(text: string, rule: CategoryRule): number {
   return score;
 }
 
+function pickTopSub<T extends string>(
+  scores: Partial<Record<T, number>>,
+  fallback: T
+): T {
+  let top = fallback;
+  let topScore = 0;
+  for (const [sub, score] of Object.entries(scores) as [T, number][]) {
+    if (score > topScore) {
+      topScore = score;
+      top = sub;
+    }
+  }
+  return topScore > 0 ? top : fallback;
+}
+
 export function categorizePaper(
   title: string,
   abstract: string
@@ -114,23 +174,29 @@ export function categorizePaper(
   const text = `${title} ${abstract}`.toLowerCase();
 
   let bestCategory: MainCategory = "asset-allocation";
-  let bestSub: SubCategory | undefined;
   let bestScore = 0;
 
   const categoryScores: Partial<Record<MainCategory, number>> = {};
-  const subScores: Partial<Record<SubCategory, number>> = {};
+  const allocationSubScores: Partial<Record<AllocationSubCategory, number>> = {};
+  const managementSubScores: Partial<Record<ManagementSubCategory, number>> = {};
 
   for (const rule of RULES) {
     const score = scoreRule(text, rule);
     if (score === 0) continue;
 
+    categoryScores[rule.category] = (categoryScores[rule.category] ?? 0) + score;
+
     if (rule.subCategory) {
-      subScores[rule.subCategory] = (subScores[rule.subCategory] ?? 0) + score;
-      categoryScores["asset-management"] =
-        (categoryScores["asset-management"] ?? 0) + score;
-    } else {
-      categoryScores[rule.category] =
-        (categoryScores[rule.category] ?? 0) + score;
+      if (rule.category === "asset-allocation") {
+        allocationSubScores[rule.subCategory as AllocationSubCategory] =
+          (allocationSubScores[rule.subCategory as AllocationSubCategory] ?? 0) +
+          score;
+      }
+      if (rule.category === "asset-management") {
+        managementSubScores[rule.subCategory as ManagementSubCategory] =
+          (managementSubScores[rule.subCategory as ManagementSubCategory] ?? 0) +
+          score;
+      }
     }
   }
 
@@ -145,26 +211,25 @@ export function categorizePaper(
   }
 
   if (bestCategory === "asset-management") {
-    let topSub: SubCategory = "equity";
-    let topSubScore = 0;
-    for (const [sub, score] of Object.entries(subScores) as [
-      SubCategory,
-      number,
-    ][]) {
-      if (score > topSubScore) {
-        topSubScore = score;
-        topSub = sub;
-      }
-    }
-    bestSub = topSubScore > 0 ? topSub : "equity";
+    return {
+      category: bestCategory,
+      subCategory: pickTopSub(managementSubScores, "equity"),
+    };
+  }
+
+  if (bestCategory === "asset-allocation") {
+    return {
+      category: bestCategory,
+      subCategory: pickTopSub(allocationSubScores, "strategy-general"),
+    };
   }
 
   if (bestScore === 0) {
     if (text.includes("pension") || text.includes("retirement")) {
-      return { category: "asset-allocation" };
+      return { category: "asset-allocation", subCategory: "strategy-general" };
     }
     return { category: "asset-management", subCategory: "equity" };
   }
 
-  return { category: bestCategory, subCategory: bestSub };
+  return { category: bestCategory };
 }

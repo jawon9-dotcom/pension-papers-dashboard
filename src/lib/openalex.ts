@@ -30,6 +30,14 @@ const BASE_FILTER_QUERIES = [
   "title.search:retirement fund investment",
   "title.search:defined benefit pension",
   "title.search:public pension",
+  "title.search:pension fund strategy",
+  "title.search:pension portfolio policy",
+  "title.search:institutional investor pension",
+  "title.search:pension fund white paper",
+  "title.search:retirement plan investment policy",
+  "title.search:asset owner pension strategy",
+  "title.search:pension industry research",
+  "title.search:sovereign pension fund",
 ];
 
 interface OpenAlexWork {
@@ -50,6 +58,7 @@ interface OpenAlexWork {
   } | null;
   open_access?: { oa_url?: string };
   cited_by_count?: number;
+  type?: string;
 }
 
 interface OpenAlexResponse {
@@ -70,10 +79,20 @@ function reconstructAbstract(
 
 function isRelevant(title: string, abstract: string): boolean {
   const text = `${title} ${abstract}`.toLowerCase();
-  const core = ["pension", "retirement", "superannuation", "provident fund"];
+  const core = [
+    "pension",
+    "retirement",
+    "superannuation",
+    "provident fund",
+    "endowment fund",
+    "sovereign wealth",
+    "public pension",
+    "defined benefit",
+    "defined contribution",
+  ];
   if (!core.some((kw) => text.includes(kw))) return false;
 
-  const financeCtx = [
+  const context = [
     "fund",
     "investment",
     "portfolio",
@@ -84,8 +103,20 @@ function isRelevant(title: string, abstract: string): boolean {
     "benefit",
     "liability",
     "governance",
+    "strategy",
+    "policy",
+    "manager",
+    "trustee",
+    "fiduciary",
+    "research",
+    "report",
+    "industry",
+    "market",
+    "capital",
+    "finance",
+    "institutional",
   ];
-  return financeCtx.some((kw) => text.includes(kw));
+  return context.some((kw) => text.includes(kw));
 }
 
 function mapWorkToPaper(
@@ -137,6 +168,7 @@ function mapWorkToPaper(
     countryCode,
     citationCount: work.cited_by_count ?? 0,
     sourceSite: getSourceSiteLabel(originalUrl),
+    publicationType: work.type?.replace(/-/g, " ") ?? undefined,
   };
 }
 

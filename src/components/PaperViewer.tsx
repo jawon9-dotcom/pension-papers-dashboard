@@ -137,7 +137,7 @@ export function PaperViewer({
   const countryCode = resolveCountryCode(paper);
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {onBack && (
         <div className="shrink-0 border-b border-slate-800 bg-slate-900/50 px-4 py-2.5 lg:hidden">
           <button
@@ -162,7 +162,10 @@ export function PaperViewer({
           </button>
         </div>
       )}
-      <div className={`border-b bg-gradient-to-r px-4 py-4 sm:px-6 sm:py-5 ${headerClass}`}>
+
+      <div
+        className={`hidden shrink-0 border-b bg-gradient-to-r px-4 py-4 sm:px-6 sm:py-5 lg:block ${headerClass}`}
+      >
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <CountryFlag
             countryCode={paper.countryCode}
@@ -206,7 +209,45 @@ export function PaperViewer({
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="scroll-area min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <div
+          className={`border-b bg-gradient-to-r px-4 py-4 sm:px-6 sm:py-5 lg:hidden ${headerClass}`}
+        >
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <CountryFlag
+              countryCode={paper.countryCode}
+              title={paper.title}
+              abstract={paper.abstract}
+              journal={paper.journal}
+              size="md"
+            />
+            <span className="rounded-full bg-slate-800/80 px-2.5 py-0.5 text-xs font-medium text-slate-300">
+              {CATEGORY_LABELS[paper.category]}
+              {paper.subCategory &&
+                ` · ${SUB_CATEGORY_LABELS[paper.subCategory]}`}
+            </span>
+            <PaperMetaBadges
+              citationCount={paper.citationCount}
+              originalUrl={paper.originalUrl}
+              sourceSite={paper.sourceSite}
+              size="md"
+            />
+            {countryCode && (
+              <span className="text-xs text-slate-500">
+                {getCountryNameKo(countryCode)}
+              </span>
+            )}
+            <span className="text-xs text-slate-500">{paper.year}</span>
+          </div>
+          <h2 className="text-lg font-bold leading-snug text-white">
+            {displayTitleKo}
+          </h2>
+          <p className="mt-1 text-sm italic text-slate-400">{paper.title}</p>
+          <p className="mt-2 text-xs text-slate-500">
+            {paper.authors.join(", ")}
+          </p>
+        </div>
+
         <div className="border-b border-slate-800 px-4 py-4 sm:px-6 sm:py-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-400">

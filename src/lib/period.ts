@@ -35,7 +35,7 @@ export function buildYearFetchPlan(
 } {
   const years = listYearsInRange(yearFrom, yearTo);
   const maxTotal = getMaxPapersForPeriod(yearFrom, yearTo);
-  const queriesPerYear = Math.min(queryCount, years.length <= 3 ? 4 : 3);
+  const queriesPerYear = Math.min(queryCount, years.length <= 3 ? 5 : 4);
   const targetPerYear = Math.ceil(maxTotal / years.length);
   const perPage = Math.max(
     3,
