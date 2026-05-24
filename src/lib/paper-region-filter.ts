@@ -1,6 +1,7 @@
 import { Paper } from "@/types/paper";
 import { resolveCountryCode } from "./country";
 import { isAfricanPaper } from "./africa-filter";
+import { isNonInvestmentPensionPaper } from "./non-investment-pension-filter";
 
 export const RUSSIA_EASTERN_EUROPE_COUNTRY_CODES = new Set([
   "RU",
@@ -135,6 +136,16 @@ export function isExcludedRegionPaper(
   );
 }
 
+export function isIngestExcludedPaper(
+  paper: Pick<Paper, "title" | "abstract" | "journal" | "countryCode">
+): boolean {
+  return isExcludedRegionPaper(paper) || isNonInvestmentPensionPaper(paper);
+}
+
 export function filterExcludedRegionPapers<T extends Paper>(papers: T[]): T[] {
-  return papers.filter((paper) => !isExcludedRegionPaper(paper));
+  return papers.filter((paper) => !isIngestExcludedPaper(paper));
+}
+
+export function filterIngestPapers<T extends Paper>(papers: T[]): T[] {
+  return filterExcludedRegionPapers(papers);
 }
