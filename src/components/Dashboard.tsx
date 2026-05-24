@@ -219,17 +219,21 @@ export function Dashboard({
   );
 
   const selectedPaper = useMemo(() => {
-    if (selectedSnapshot && selectedSnapshot.id === selectedId) {
+    if (selectedId && selectedSnapshot?.id === selectedId) {
       return selectedSnapshot;
     }
 
-    if (filteredPapers.length === 0) return null;
     if (selectedId) {
-      const found = filteredPapers.find((p) => p.id === selectedId);
-      if (found) return found;
+      const inFiltered = filteredPapers.find((p) => p.id === selectedId);
+      if (inFiltered) return inFiltered;
+
+      const inAll = papers.find((p) => p.id === selectedId);
+      if (inAll) return inAll;
     }
+
+    if (filteredPapers.length === 0) return null;
     return filteredPapers[0];
-  }, [filteredPapers, selectedId, selectedSnapshot]);
+  }, [filteredPapers, papers, selectedId, selectedSnapshot]);
 
   const contentCountsForScope = useMemo(() => {
     const scoped =
@@ -284,6 +288,7 @@ export function Dashboard({
       prev.map((p) => (p.id === updated.id ? updated : p))
     );
     setSelectedId(updated.id);
+    setSelectedSnapshot((prev) => (prev?.id === updated.id ? updated : prev));
   };
 
   const handleSelectPaper = (paper: Paper) => {
@@ -295,9 +300,7 @@ export function Dashboard({
   const handleSelectFromMyList = (item: SavedPaperItem) => {
     const paper = resolveSavedPaper(item, papers);
     setSelectedId(paper.id);
-    setSelectedSnapshot(
-      papers.some((existing) => existing.id === paper.id) ? null : paper
-    );
+    setSelectedSnapshot(paper);
     setMobilePanel("detail");
   };
 
