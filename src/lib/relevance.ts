@@ -2,7 +2,7 @@ import { hasSaaSignal, hasTaaSignal } from "./allocation-signals";
 import { hasPriorityRegionSignal } from "./priority-regions";
 import { hasKoreaPensionSignal } from "./korea-regions";
 import { hasGlobalPensionTrendSignal } from "./global-pension-trends";
-import { isNonInvestmentPensionPaper } from "./non-investment-pension-filter";
+import { isNonInvestmentPensionPaper, isFundManagerEligiblePaper } from "./non-investment-pension-filter";
 
 export type RelevanceMode = "default" | "industry" | "tpa" | "priority" | "korea" | "global-trend";
 
@@ -239,6 +239,13 @@ export function isPaperRelevant(
   const relevanceScore = scorePaperRelevance(title, abstract);
 
   if (isNonInvestmentPensionPaper({ title, abstract, journal: "" })) {
+    return false;
+  }
+
+  if (
+    mode === "default" &&
+    !isFundManagerEligiblePaper({ title, abstract, journal: "" })
+  ) {
     return false;
   }
 

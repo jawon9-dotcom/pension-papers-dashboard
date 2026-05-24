@@ -1,4 +1,7 @@
-import { Paper } from "@/types/paper";
+import { MainCategory, Paper, SubCategory } from "@/types/paper";
+import { hasGlobalPensionTrendSignal } from "./global-pension-trends";
+import { hasPriorityRegionSignal } from "./priority-regions";
+import { hasKoreaPensionSignal } from "./korea-regions";
 
 const PENSION_CONTEXT = [
   "pension",
@@ -8,17 +11,63 @@ const PENSION_CONTEXT = [
   "national pension",
 ];
 
-const INVESTMENT_OPERATION_SIGNALS = [
+const INSTITUTIONAL_CONTEXT = [
+  "pension fund",
+  "pension plan",
+  "retirement fund",
+  "asset owner",
+  "institutional investor",
+  "sovereign wealth",
+  "sovereign fund",
+  "public fund",
+  "endowment",
+  "super fund",
+  "연기금",
+  "국민연금",
+  "공적연금",
+];
+
+export const ALLOCATION_STRATEGY_SIGNALS = [
   "asset allocation",
-  "portfolio management",
-  "portfolio construction",
   "investment strategy",
   "investment policy",
+  "portfolio strategy",
+  "portfolio policy",
+  "portfolio construction",
+  "portfolio management",
+  "allocation policy",
+  "ldi",
+  "liability driven",
+  "liability-driven",
+  "asset liability management",
+  "asset-liability management",
+  "alm",
+  "glide path",
+  "rebalancing",
+  "total portfolio approach",
+  "reference portfolio",
+  "strategic asset allocation",
+  "tactical asset allocation",
+  "factor based",
+  "factor investing",
+  "pension fund strategy",
+  "pension fund investment",
+  "pension portfolio",
+  "pension investment",
+  "investment policy statement",
+  "policy portfolio",
+  "운용전략",
+  "자산배분",
+  "부채연동",
+  "연기금 투자",
+  "기금운용",
+];
+
+const INVESTMENT_OPERATION_SIGNALS = [
+  ...ALLOCATION_STRATEGY_SIGNALS,
   "fund manager",
   "asset manager",
   "asset management",
-  "asset owner",
-  "institutional investor",
   "private equity",
   "alternative investment",
   "real estate fund",
@@ -27,38 +76,42 @@ const INVESTMENT_OPERATION_SIGNALS = [
   "fixed income",
   "equity portfolio",
   "bond portfolio",
-  "liability driven",
-  "ldi",
   "benchmark",
   "performance attribution",
   "risk management",
-  "total portfolio approach",
-  "reference portfolio",
-  "strategic asset allocation",
-  "tactical asset allocation",
-  "factor investing",
-  "factor based",
   "manager selection",
   "manager evaluation",
   "fiduciary",
-  "glide path",
-  "rebalancing",
   "custodian",
-  "sovereign wealth",
-  "pension fund investment",
   "fund performance",
   "alpha",
   "tracking error",
-  "자산배분",
-  "포트폴리오",
-  "운용",
-  "투자전략",
   "대체투자",
   "사모펀드",
-  "연기금 투자",
-  "기금운용",
   "long-term invest",
   "capital market",
+];
+
+const OFF_TOPIC_PATTERNS: RegExp[] = [
+  /eurovision/i,
+  /academic-industry partnership/i,
+  /academic industry partnership/i,
+  /degree program/i,
+  /professional degree/i,
+  /technical and professional/i,
+  /higher education/i,
+  /curriculum design/i,
+  /undergraduate program/i,
+  /vocational education/i,
+  /teacher training/i,
+  /music festival/i,
+  /entertainment industry/i,
+  /television broadcast/i,
+  /clinical trial/i,
+  /medical treatment/i,
+  /cancer therapy/i,
+  /agricultural crop/i,
+  /climate change adaptation(?!.*portfolio)/i,
 ];
 
 const NON_INVESTMENT_PENSION_PATTERNS: RegExp[] = [
@@ -99,8 +152,22 @@ function hasPensionContext(text: string): boolean {
   return PENSION_CONTEXT.some((term) => text.includes(term));
 }
 
-function hasInvestmentOperationSignal(text: string): boolean {
+function hasInstitutionalPensionContext(text: string): boolean {
+  return (
+    hasPensionContext(text) ||
+    INSTITUTIONAL_CONTEXT.some((term) => text.includes(term)) ||
+    hasGlobalPensionTrendSignal(text) ||
+    hasPriorityRegionSignal(text) ||
+    hasKoreaPensionSignal(text)
+  );
+}
+
+export function hasInvestmentOperationSignal(text: string): boolean {
   return INVESTMENT_OPERATION_SIGNALS.some((term) => text.includes(term));
+}
+
+export function hasAllocationStrategySignal(text: string): boolean {
+  return ALLOCATION_STRATEGY_SIGNALS.some((term) => text.includes(term));
 }
 
 export function isNonInvestmentPensionPaper(
@@ -136,8 +203,43 @@ export function isNonInvestmentPensionPaper(
   return false;
 }
 
+export function isFundManagerEligiblePaper(
+  paper: Pick<Paper, "title" | "abstract" | "journal"> & {
+    category?: MainCategory;
+    subCategory?: SubCategory;
+  }
+): boolean {
+  const text = `${paper.title} ${paper.abstract} ${paper.journal}`.toLowerCase();
+
+  if (OFF_TOPIC_PATTERNS.some((pattern) => pattern.test(text))) {
+    return false;
+  }
+
+  if (isNonInvestmentPensionPaper(paper)) {
+    return false;
+  }
+
+  const institutional = hasInstitutionalPensionContext(text);
+  const ops = hasInvestmentOperationSignal(text);
+  const strategy = hasAllocationStrategySignal(text);
+
+  if (!institutional || (!ops && !strategy)) {
+    return false;
+  }
+
+  if (
+    paper.category === "asset-allocation" &&
+    paper.subCategory === "strategy-general" &&
+    !strategy
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 export function filterNonInvestmentPensionPapers<T extends Paper>(
   papers: T[]
 ): T[] {
-  return papers.filter((paper) => !isNonInvestmentPensionPaper(paper));
+  return papers.filter((paper) => isFundManagerEligiblePaper(paper));
 }
