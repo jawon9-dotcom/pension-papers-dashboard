@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Paper } from "@/types/paper";
+import { getDisplayAbstractKo } from "@/lib/korean-publication";
+import { getListDisplayTitle } from "@/lib/title-ko";
 
 interface AbstractPopupProps {
   paper: Paper;
@@ -39,10 +41,15 @@ export function AbstractPopup({ paper, x, y }: AbstractPopupProps) {
       style={{ left: pos.x, top: pos.y }}
       role="tooltip"
     >
+      <p className="mb-1 text-sm font-medium leading-snug text-slate-100">
+        {getListDisplayTitle(paper)}
+      </p>
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-400">
         Abstract
       </p>
-      <p className="text-sm leading-relaxed text-slate-200">{paper.abstractKo}</p>
+      <p className="text-sm leading-relaxed text-slate-200">
+        {getDisplayAbstractKo(paper)}
+      </p>
       <div className="mt-3 border-t border-slate-700 pt-2">
         <p className="text-xs text-slate-400">
           {paper.authors.join(", ")} · {paper.year}

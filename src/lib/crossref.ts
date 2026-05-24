@@ -43,6 +43,10 @@ function interleaveCrossRefQueries(
 
 const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
   { query: "pension fund asset allocation", mode: "default" },
+  { query: "pension fund strategic asset allocation", mode: "default" },
+  { query: "pension fund tactical asset allocation", mode: "default" },
+  { query: "strategic asset allocation pension fund", mode: "default" },
+  { query: "tactical asset allocation institutional investor", mode: "default" },
   { query: "pension fund investment strategy", mode: "default" },
   { query: "pension fund equity portfolio", mode: "default" },
   { query: "pension fund fixed income bond", mode: "default" },
@@ -69,7 +73,6 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
   { query: "asset owner pension strategy", mode: "industry" },
   { query: "pension fund annual investment report", mode: "industry" },
   { query: "sovereign pension fund portfolio", mode: "industry" },
-  { query: "pension fund strategic asset allocation", mode: "default" },
   { query: "pension fund reference portfolio", mode: "tpa" },
   { query: "total portfolio approach pension", mode: "tpa" },
   { query: "total portfolio approach asset owner", mode: "tpa" },

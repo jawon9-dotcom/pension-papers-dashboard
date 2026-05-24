@@ -1,4 +1,5 @@
 import { Paper } from "@/types/paper";
+import { applyKoreanPublicationFields } from "./korean-publication";
 import { readSummaryCache, writeSummaryCache } from "./cache";
 import { isKoreanText, needsKoreanTitle } from "./title-ko";
 import {
@@ -11,6 +12,11 @@ export interface TitleInput {
   id: string;
   title: string;
   titleKo?: string;
+  abstract?: string;
+  journal?: string;
+  countryCode?: string;
+  originalUrl?: string;
+  sourceSite?: string;
 }
 
 const BATCH_SIZE = 12;
@@ -125,19 +131,20 @@ export async function resolveTitleKoBatch(
 export async function applyCachedTitles(papers: Paper[]): Promise<Paper[]> {
   return Promise.all(
     papers.map(async (paper) => {
-      if (!needsKoreanTitle(paper)) return paper;
+      const enriched = applyKoreanPublicationFields(paper);
+      if (!needsKoreanTitle(enriched)) return enriched;
 
-      const cached = await readSummaryCache(paper.id);
+      const cached = await readSummaryCache(enriched.id);
       if (cached?.titleKo && isKoreanText(cached.titleKo)) {
-        return {
-          ...paper,
+        return applyKoreanPublicationFields({
+          ...enriched,
           titleKo: cached.titleKo,
-          abstractKo: paper.abstractKo || cached.abstractKo,
-          summaryKo: paper.summaryKo || cached.summaryKo,
-        };
+          abstractKo: enriched.abstractKo || cached.abstractKo,
+          summaryKo: enriched.summaryKo || cached.summaryKo,
+        });
       }
 
-      return paper;
+      return enriched;
     })
   );
 }

@@ -1,4 +1,5 @@
 import { Paper } from "@/types/paper";
+import { applyKoreanPublicationFields } from "./korean-publication";
 
 export function getSourceSiteLabel(url: string): string {
   try {
@@ -43,11 +44,11 @@ export function formatPopularityScore(score?: number): string {
 }
 
 export function enrichPaper(paper: Paper): Paper {
-  return {
+  return applyKoreanPublicationFields({
     ...paper,
     citationCount: paper.citationCount ?? 0,
     sourceSite: paper.sourceSite ?? getSourceSiteLabel(paper.originalUrl),
-  };
+  });
 }
 
 export function enrichPapers(papers: Paper[]): Paper[] {

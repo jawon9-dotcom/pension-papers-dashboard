@@ -3,6 +3,11 @@ import { inferCountryFromText } from "./country";
 import { getSourceSiteLabel } from "./source";
 import { FetchPeriod, TPA_NEWS_MAX } from "./period";
 import { hasTrueTpaSignal } from "./relevance";
+import {
+  hasSaaSignal,
+  hasTaaSignal,
+  resolveSaaTaaSubCategory,
+} from "./allocation-signals";
 import { isServerlessEnv } from "./server-env";
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
@@ -12,6 +17,10 @@ const PENSION_NEWS_SEARCHES = [
   "total portfolio approach pension",
   "reference portfolio pension fund",
   "reference portfolio asset owner",
+  "strategic asset allocation pension",
+  "tactical asset allocation pension fund",
+  "pension fund strategic asset allocation",
+  "pension fund tactical asset allocation",
   "pension fund investment strategy",
   "pension fund portfolio management",
   "national pension fund investment",
@@ -22,6 +31,8 @@ const PENSION_NEWS_SEARCHES = [
   "국민연금 운용",
   "연기금 투자 전략",
   "연기금 포트폴리오",
+  "연기금 전략적 자산배분",
+  "연기금 전술적 자산배분",
   "공적연금 자산운용",
 ];
 
@@ -306,6 +317,23 @@ function categorizeNewsArticle(
 ): { category: MainCategory; subCategory: SubCategory } {
   const text = `${title} ${description}`.toLowerCase();
 
+  if (hasTrueTpaSignal(title, text)) {
+    return { category: "asset-allocation", subCategory: "tpa" };
+  }
+
+  const saaTaa = resolveSaaTaaSubCategory(title, text);
+  if (saaTaa) {
+    return { category: "asset-allocation", subCategory: saaTaa };
+  }
+
+  if (hasSaaSignal(title, text)) {
+    return { category: "asset-allocation", subCategory: "saa" };
+  }
+
+  if (hasTaaSignal(title, text)) {
+    return { category: "asset-allocation", subCategory: "taa" };
+  }
+
   if (
     text.includes("private equity") ||
     text.includes("alternative investment") ||
@@ -351,26 +379,6 @@ function categorizeNewsArticle(
     text.includes("운용전략")
   ) {
     return { category: "asset-management", subCategory: "equity" };
-  }
-
-  if (hasTrueTpaSignal(title, text)) {
-    return { category: "asset-allocation", subCategory: "tpa" };
-  }
-
-  if (
-    text.includes("strategic asset allocation") ||
-    text.includes(" saa") ||
-    text.includes("전략적 자산")
-  ) {
-    return { category: "asset-allocation", subCategory: "saa" };
-  }
-
-  if (
-    text.includes("tactical asset allocation") ||
-    text.includes(" taa") ||
-    text.includes("전술적 자산")
-  ) {
-    return { category: "asset-allocation", subCategory: "taa" };
   }
 
   return { category: "asset-allocation", subCategory: "strategy-general" };

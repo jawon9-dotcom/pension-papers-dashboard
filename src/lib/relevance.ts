@@ -1,3 +1,5 @@
+import { hasSaaSignal, hasTaaSignal } from "./allocation-signals";
+
 export type RelevanceMode = "default" | "industry" | "tpa";
 
 const PENSION_CORE = [
@@ -130,6 +132,8 @@ export function scorePaperRelevance(title: string, abstract: string): number {
   if (INSTITUTIONAL_CORE.some((kw) => text.includes(kw))) score += 4;
   if (FINANCE_CONTEXT.some((kw) => text.includes(kw))) score += 3;
   if (hasTrueTpaSignal(title, text)) score += 10;
+  if (hasSaaSignal(title, text)) score += 8;
+  if (hasTaaSignal(title, text)) score += 8;
   if (
     text.includes("portfolio management") ||
     text.includes("investment strategy") ||

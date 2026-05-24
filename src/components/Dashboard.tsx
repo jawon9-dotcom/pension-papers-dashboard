@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Paper, MainCategory, SubCategory, CATEGORY_LABELS, SUB_CATEGORY_LABELS, CATEGORY_SUB_CATEGORIES } from "@/types/paper";
 import { needsKoreanTitle } from "@/lib/title-ko";
+import { isKoreanPublication } from "@/lib/korean-publication";
 import { CitationGraphNode } from "@/types/citation-graph";
 import {
   clampYearRange,
@@ -128,11 +129,17 @@ export function Dashboard({
   useEffect(() => {
     if (!apiKey) return;
 
-    const pending = papers.filter(
-      (paper) =>
-        needsKoreanTitle(paper) &&
-        !titleTranslationAttemptRef.current.has(paper.id)
-    );
+    const pending = papers
+      .filter(
+        (paper) =>
+          needsKoreanTitle(paper) &&
+          !titleTranslationAttemptRef.current.has(paper.id)
+      )
+      .sort((a, b) => {
+        const aKr = isKoreanPublication(a) ? 0 : 1;
+        const bKr = isKoreanPublication(b) ? 0 : 1;
+        return aKr - bKr;
+      });
     if (pending.length === 0) return;
 
     pending
@@ -151,6 +158,11 @@ export function Dashboard({
               id: paper.id,
               title: paper.title,
               titleKo: paper.titleKo,
+              abstract: paper.abstract,
+              journal: paper.journal,
+              countryCode: paper.countryCode,
+              originalUrl: paper.originalUrl,
+              sourceSite: paper.sourceSite,
             })),
             openaiApiKey: apiKey,
           }),

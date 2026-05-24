@@ -9,6 +9,7 @@ import {
   formatNewsPublishDate,
 } from "@/types/paper";
 import { formatPopularityScore } from "@/lib/source";
+import { getListDisplayTitle } from "@/lib/title-ko";
 import { PaperMetaBadges } from "./PaperMetaBadges";
 
 interface NewsArticleViewerProps {
@@ -205,7 +206,7 @@ export function NewsArticleViewer({
     fetchArticleBody();
   }, [fetchArticleBody]);
 
-  const displayTitleKo = titleKo || paper.titleKo;
+  const displayTitleKo = titleKo || getListDisplayTitle(paper);
   const displaySummary = summaryText || paper.summaryKo;
   const showGenerateButton =
     !displaySummary && !summaryLoading && !summaryRequested;

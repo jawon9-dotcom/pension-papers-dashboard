@@ -4,6 +4,11 @@ import {
   ManagementSubCategory,
   SubCategory,
 } from "@/types/paper";
+import {
+  hasSaaSignal,
+  hasTaaSignal,
+  resolveSaaTaaSubCategory,
+} from "./allocation-signals";
 
 interface CategoryRule {
   category: MainCategory;
@@ -11,6 +16,8 @@ interface CategoryRule {
   keywords: string[];
   weight?: number;
 }
+
+const ACRONYM_KEYWORDS = new Set(["saa", "taa", "tpa", "ldi", "var", "erm"]);
 
 const RULES: CategoryRule[] = [
   {
@@ -50,26 +57,54 @@ const RULES: CategoryRule[] = [
     subCategory: "saa",
     keywords: [
       "strategic asset allocation",
+      "strategic asset mix",
+      "strategic portfolio allocation",
       "strategic allocation",
-      "saa",
+      "strategic allocation policy",
       "policy portfolio",
+      "policy asset allocation",
+      "long-term asset allocation",
       "long-term allocation",
-      "policy benchmark",
+      "long run asset allocation",
+      "target asset allocation",
+      "asset mix policy",
+      "investment policy statement",
+      "saa",
+      "전략적 자산배분",
+      "전략적자산배분",
+      "전략적 배분",
+      "장기 자산배분",
+      "정책 포트폴리오",
+      "정책자산배분",
     ],
-    weight: 1.4,
+    weight: 1.6,
   },
   {
     category: "asset-allocation",
     subCategory: "taa",
     keywords: [
       "tactical asset allocation",
+      "tactical asset mix",
+      "tactical portfolio allocation",
       "tactical allocation",
-      "taa",
+      "dynamic tactical allocation",
       "dynamic asset allocation",
       "overlay strategy",
+      "tactical overlay",
       "market timing",
+      "tactical shift",
+      "tactical positioning",
+      "short-term asset allocation",
+      "regime-based allocation",
+      "portfolio tilt",
+      "taa",
+      "전술적 자산배분",
+      "전술적자산배분",
+      "전술적 배분",
+      "단기 자산배분",
+      "동적 자산배분",
     ],
-    weight: 1.4,
+    weight: 1.6,
   },
   {
     category: "asset-allocation",
@@ -98,8 +133,9 @@ const RULES: CategoryRule[] = [
       "allocation policy",
       "investment policy",
       "portfolio strategy",
+      "자산배분",
     ],
-    weight: 1.2,
+    weight: 1.0,
   },
   {
     category: "asset-management",
@@ -145,10 +181,18 @@ const RULES: CategoryRule[] = [
   },
 ];
 
+function includesKeyword(text: string, keyword: string): boolean {
+  const normalized = keyword.toLowerCase();
+  if (ACRONYM_KEYWORDS.has(normalized)) {
+    return new RegExp(`\\b${normalized}\\b`, "i").test(text);
+  }
+  return text.includes(normalized);
+}
+
 function scoreRule(text: string, rule: CategoryRule): number {
   let score = 0;
   for (const kw of rule.keywords) {
-    if (text.includes(kw)) score += rule.weight ?? 1;
+    if (includesKeyword(text, kw)) score += rule.weight ?? 1;
   }
   return score;
 }
@@ -199,6 +243,23 @@ function applyTpaOverride(
   return { category: "asset-allocation", subCategory: "tpa" };
 }
 
+function applySaaTaaOverride(
+  title: string,
+  abstract: string,
+  result: { category: MainCategory; subCategory?: SubCategory }
+): { category: MainCategory; subCategory?: SubCategory } {
+  if (result.category !== "asset-allocation") return result;
+  if (result.subCategory === "tpa") return result;
+
+  const text = `${title} ${abstract}`.toLowerCase();
+  const resolved = resolveSaaTaaSubCategory(title, text);
+  if (resolved) {
+    return { ...result, subCategory: resolved };
+  }
+
+  return result;
+}
+
 export function categorizePaper(
   title: string,
   abstract: string
@@ -220,6 +281,20 @@ export function categorizePaper(
     categoryScores["asset-allocation"] =
       (categoryScores["asset-allocation"] ?? 0) + tpaTitleBoost;
     allocationSubScores.tpa = (allocationSubScores.tpa ?? 0) + tpaTitleBoost;
+  }
+
+  if (hasSaaSignal(title, text)) {
+    const boost = hasSaaSignal(title, titleLower) ? 3 : 2;
+    categoryScores["asset-allocation"] =
+      (categoryScores["asset-allocation"] ?? 0) + boost;
+    allocationSubScores.saa = (allocationSubScores.saa ?? 0) + boost;
+  }
+
+  if (hasTaaSignal(title, text)) {
+    const boost = hasTaaSignal(title, titleLower) ? 3 : 2;
+    categoryScores["asset-allocation"] =
+      (categoryScores["asset-allocation"] ?? 0) + boost;
+    allocationSubScores.taa = (allocationSubScores.taa ?? 0) + boost;
   }
 
   for (const rule of RULES) {
@@ -253,31 +328,51 @@ export function categorizePaper(
   }
 
   if (bestCategory === "asset-management") {
-    return applyTpaOverride(title, abstract, {
-      category: bestCategory,
-      subCategory: pickTopSub(managementSubScores, "equity"),
-    });
+    return applySaaTaaOverride(
+      title,
+      abstract,
+      applyTpaOverride(title, abstract, {
+        category: bestCategory,
+        subCategory: pickTopSub(managementSubScores, "equity"),
+      })
+    );
   }
 
   if (bestCategory === "asset-allocation") {
-    return applyTpaOverride(title, abstract, {
-      category: bestCategory,
-      subCategory: pickTopSub(allocationSubScores, "strategy-general"),
-    });
+    return applySaaTaaOverride(
+      title,
+      abstract,
+      applyTpaOverride(title, abstract, {
+        category: bestCategory,
+        subCategory: pickTopSub(allocationSubScores, "strategy-general"),
+      })
+    );
   }
 
   if (bestScore === 0) {
     if (text.includes("pension") || text.includes("retirement")) {
-      return applyTpaOverride(title, abstract, {
-        category: "asset-allocation",
-        subCategory: "strategy-general",
-      });
+      return applySaaTaaOverride(
+        title,
+        abstract,
+        applyTpaOverride(title, abstract, {
+          category: "asset-allocation",
+          subCategory: "strategy-general",
+        })
+      );
     }
-    return applyTpaOverride(title, abstract, {
-      category: "asset-management",
-      subCategory: "equity",
-    });
+    return applySaaTaaOverride(
+      title,
+      abstract,
+      applyTpaOverride(title, abstract, {
+        category: "asset-management",
+        subCategory: "equity",
+      })
+    );
   }
 
-  return applyTpaOverride(title, abstract, { category: bestCategory });
+  return applySaaTaaOverride(
+    title,
+    abstract,
+    applyTpaOverride(title, abstract, { category: bestCategory })
+  );
 }

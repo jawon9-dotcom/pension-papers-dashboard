@@ -13,6 +13,8 @@ import { ConnectedPapersPanel } from "./ConnectedPapersPanel";
 import { NewsArticleViewer } from "./NewsArticleViewer";
 import { CitationGraphNode } from "@/types/citation-graph";
 import { getCountryNameKo, resolveCountryCode } from "@/lib/country";
+import { getListDisplayTitle } from "@/lib/title-ko";
+import { getDisplayAbstractKo } from "@/lib/korean-publication";
 
 interface PaperViewerProps {
   paper: Paper | null;
@@ -139,8 +141,8 @@ export function PaperViewer({
     );
   }
 
-  const displayTitleKo = titleKo || paper.titleKo;
-  const displayAbstractKo = abstractKo || paper.abstractKo;
+  const displayTitleKo = titleKo || getListDisplayTitle(paper);
+  const displayAbstractKo = abstractKo || getDisplayAbstractKo(paper);
   const displaySummary = summaryText || paper.summaryKo;
   const showGenerateButton = !displaySummary && !summaryLoading && !summaryRequested;
 

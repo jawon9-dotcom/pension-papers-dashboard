@@ -52,7 +52,7 @@ const TEXT_COUNTRY_PATTERNS: { pattern: RegExp; code: string }[] = [
   { pattern: /\b(australia|australiansuper)\b/i, code: "AU" },
   { pattern: /\b(new zealand|nz super)\b/i, code: "NZ" },
   { pattern: /\b(japan|gpif)\b/i, code: "JP" },
-  { pattern: /\b(korea|south korea)\b/i, code: "KR" },
+  { pattern: /\b(korea|south korea|korean|국민연금|한국연금|공적연금)\b/i, code: "KR" },
   { pattern: /\b(switzerland|swiss)\b/i, code: "CH" },
   { pattern: /\b(kenya|kenyan)\b/i, code: "KE" },
   { pattern: /\b(nigeria|nigerian)\b/i, code: "NG" },
