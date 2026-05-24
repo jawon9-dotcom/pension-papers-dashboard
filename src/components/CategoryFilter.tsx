@@ -14,7 +14,6 @@ interface CategoryFilterProps {
   activeSubCategory: SubCategory | "all";
   onCategoryChange: (cat: MainCategory | "all") => void;
   onSubCategoryChange: (sub: SubCategory | "all") => void;
-  counts: Record<MainCategory | "all", number>;
 }
 
 const categories: (MainCategory | "all")[] = [
@@ -45,7 +44,6 @@ export function CategoryFilter({
   activeSubCategory,
   onCategoryChange,
   onSubCategoryChange,
-  counts,
 }: CategoryFilterProps) {
   const subCategories =
     activeCategory === "asset-allocation"
@@ -78,7 +76,6 @@ export function CategoryFilter({
               }`}
             >
               {cat === "all" ? "전체" : CATEGORY_LABELS[cat]}
-              <span className="ml-1 opacity-60">({counts[cat] ?? 0})</span>
             </button>
           ))}
         </div>

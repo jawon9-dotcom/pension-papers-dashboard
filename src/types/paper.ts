@@ -72,6 +72,13 @@ export const CATEGORY_INLINE_SUB_LABELS: Partial<Record<MainCategory, string>> =
     "asset-management": "주식 · 채권 · 대체투자",
   };
 
+export const CATEGORY_SUB_CATEGORIES: Partial<
+  Record<MainCategory, SubCategory[]>
+> = {
+  "asset-allocation": ["saa", "taa", "tpa", "strategy-general"],
+  "asset-management": ["equity", "bond", "alternative"],
+};
+
 export function getCategoryInlineSubLabels(
   category: MainCategory | "all"
 ): string | null {

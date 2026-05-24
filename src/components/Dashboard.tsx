@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Paper, MainCategory, SubCategory, CATEGORY_LABELS, getCategoryInlineSubLabels } from "@/types/paper";
+import { Paper, MainCategory, SubCategory, CATEGORY_LABELS, SUB_CATEGORY_LABELS, CATEGORY_SUB_CATEGORIES } from "@/types/paper";
 import { needsKoreanTitle } from "@/lib/title-ko";
 import { CitationGraphNode } from "@/types/citation-graph";
 import {
@@ -248,24 +248,13 @@ export function Dashboard({
     };
   }, [papersInPeriod, activeCategory]);
 
-  const listTitle =
-    activeCategory !== "all" ? CATEGORY_LABELS[activeCategory] : "전체";
-
-  const listInlineSubLabels = getCategoryInlineSubLabels(activeCategory);
-
-  const counts = useMemo(() => {
-    const result: Record<MainCategory | "all", number> = {
-      all: papersInPeriod.length,
-      "asset-allocation": 0,
-      "asset-management": 0,
-      "risk-management": 0,
-      "performance-evaluation": 0,
-    };
-    papersInPeriod.forEach((p) => {
-      result[p.category]++;
-    });
-    return result;
-  }, [papersInPeriod]);
+  const listTitle = useMemo(() => {
+    if (activeCategory === "all") return "전체";
+    if (activeSubCategory !== "all") {
+      return `${CATEGORY_LABELS[activeCategory]} · ${SUB_CATEGORY_LABELS[activeSubCategory]}`;
+    }
+    return CATEGORY_LABELS[activeCategory];
+  }, [activeCategory, activeSubCategory]);
 
   const handleCategoryChange = (cat: MainCategory | "all") => {
     setActiveCategory(cat);
@@ -275,9 +264,28 @@ export function Dashboard({
   };
 
   const handleStatCategoryClick = (category: MainCategory) => {
-    const nextCategory = activeCategory === category ? "all" : category;
-    handleCategoryChange(nextCategory);
-    setActiveSubCategory("all");
+    if (activeCategory === category && activeSubCategory === "all") {
+      setActiveCategory("all");
+      setActiveSubCategory("all");
+    } else {
+      setActiveCategory(category);
+      setActiveSubCategory("all");
+    }
+    setSelectedId(null);
+    setSelectedSnapshot(null);
+    setMobilePanel("list");
+  };
+
+  const handleStatSubCategoryClick = (
+    category: MainCategory,
+    sub: SubCategory
+  ) => {
+    if (activeCategory === category && activeSubCategory === sub) {
+      setActiveSubCategory("all");
+    } else {
+      setActiveCategory(category);
+      setActiveSubCategory(sub);
+    }
     setSelectedId(null);
     setSelectedSnapshot(null);
     setMobilePanel("list");
@@ -394,38 +402,48 @@ export function Dashboard({
           </button>
           <div className="hidden items-center gap-3 md:flex">
             <Stat
+              category="asset-allocation"
               label={CATEGORY_LABELS["asset-allocation"]}
-              subLabels={getCategoryInlineSubLabels("asset-allocation") ?? undefined}
-              value={counts["asset-allocation"]}
+              subCategories={CATEGORY_SUB_CATEGORIES["asset-allocation"]}
               color="text-emerald-400"
-              active={activeCategory === "asset-allocation"}
+              chipActiveClass="border-emerald-400/60 bg-emerald-500/20 text-emerald-200"
+              activeCategory={activeCategory}
+              activeSubCategory={activeSubCategory}
               activeClass="border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/20"
-              onClick={() => handleStatCategoryClick("asset-allocation")}
+              onCategoryClick={handleStatCategoryClick}
+              onSubCategoryClick={handleStatSubCategoryClick}
             />
             <Stat
+              category="asset-management"
               label={CATEGORY_LABELS["asset-management"]}
-              subLabels={getCategoryInlineSubLabels("asset-management") ?? undefined}
-              value={counts["asset-management"]}
+              subCategories={CATEGORY_SUB_CATEGORIES["asset-management"]}
               color="text-blue-400"
-              active={activeCategory === "asset-management"}
+              chipActiveClass="border-blue-400/60 bg-blue-500/20 text-blue-200"
+              activeCategory={activeCategory}
+              activeSubCategory={activeSubCategory}
               activeClass="border-blue-400 bg-blue-500/25 ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/20"
-              onClick={() => handleStatCategoryClick("asset-management")}
+              onCategoryClick={handleStatCategoryClick}
+              onSubCategoryClick={handleStatSubCategoryClick}
             />
             <Stat
+              category="risk-management"
               label={CATEGORY_LABELS["risk-management"]}
-              value={counts["risk-management"]}
               color="text-amber-400"
-              active={activeCategory === "risk-management"}
+              activeCategory={activeCategory}
+              activeSubCategory={activeSubCategory}
               activeClass="border-amber-400 bg-amber-500/25 ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/20"
-              onClick={() => handleStatCategoryClick("risk-management")}
+              onCategoryClick={handleStatCategoryClick}
+              onSubCategoryClick={handleStatSubCategoryClick}
             />
             <Stat
+              category="performance-evaluation"
               label={CATEGORY_LABELS["performance-evaluation"]}
-              value={counts["performance-evaluation"]}
               color="text-violet-400"
-              active={activeCategory === "performance-evaluation"}
+              activeCategory={activeCategory}
+              activeSubCategory={activeSubCategory}
               activeClass="border-violet-400 bg-violet-500/25 ring-2 ring-violet-500/50 shadow-lg shadow-violet-500/20"
-              onClick={() => handleStatCategoryClick("performance-evaluation")}
+              onCategoryClick={handleStatCategoryClick}
+              onSubCategoryClick={handleStatSubCategoryClick}
             />
           </div>
         </div>
@@ -433,42 +451,52 @@ export function Dashboard({
 
       <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-800 px-4 py-2 md:hidden">
         <Stat
+          category="asset-allocation"
           label={CATEGORY_LABELS["asset-allocation"]}
-          subLabels={getCategoryInlineSubLabels("asset-allocation") ?? undefined}
-          value={counts["asset-allocation"]}
+          subCategories={CATEGORY_SUB_CATEGORIES["asset-allocation"]}
           color="text-emerald-400"
+          chipActiveClass="border-emerald-400/60 bg-emerald-500/20 text-emerald-200"
           compact
-          active={activeCategory === "asset-allocation"}
+          activeCategory={activeCategory}
+          activeSubCategory={activeSubCategory}
           activeClass="border-emerald-400 bg-emerald-500/25 ring-2 ring-emerald-500/50 shadow-lg shadow-emerald-500/20"
-          onClick={() => handleStatCategoryClick("asset-allocation")}
+          onCategoryClick={handleStatCategoryClick}
+          onSubCategoryClick={handleStatSubCategoryClick}
         />
         <Stat
+          category="asset-management"
           label={CATEGORY_LABELS["asset-management"]}
-          subLabels={getCategoryInlineSubLabels("asset-management") ?? undefined}
-          value={counts["asset-management"]}
+          subCategories={CATEGORY_SUB_CATEGORIES["asset-management"]}
           color="text-blue-400"
+          chipActiveClass="border-blue-400/60 bg-blue-500/20 text-blue-200"
           compact
-          active={activeCategory === "asset-management"}
+          activeCategory={activeCategory}
+          activeSubCategory={activeSubCategory}
           activeClass="border-blue-400 bg-blue-500/25 ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/20"
-          onClick={() => handleStatCategoryClick("asset-management")}
+          onCategoryClick={handleStatCategoryClick}
+          onSubCategoryClick={handleStatSubCategoryClick}
         />
         <Stat
+          category="risk-management"
           label={CATEGORY_LABELS["risk-management"]}
-          value={counts["risk-management"]}
           color="text-amber-400"
           compact
-          active={activeCategory === "risk-management"}
+          activeCategory={activeCategory}
+          activeSubCategory={activeSubCategory}
           activeClass="border-amber-400 bg-amber-500/25 ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/20"
-          onClick={() => handleStatCategoryClick("risk-management")}
+          onCategoryClick={handleStatCategoryClick}
+          onSubCategoryClick={handleStatSubCategoryClick}
         />
         <Stat
+          category="performance-evaluation"
           label={CATEGORY_LABELS["performance-evaluation"]}
-          value={counts["performance-evaluation"]}
           color="text-violet-400"
           compact
-          active={activeCategory === "performance-evaluation"}
+          activeCategory={activeCategory}
+          activeSubCategory={activeSubCategory}
           activeClass="border-violet-400 bg-violet-500/25 ring-2 ring-violet-500/50 shadow-lg shadow-violet-500/20"
-          onClick={() => handleStatCategoryClick("performance-evaluation")}
+          onCategoryClick={handleStatCategoryClick}
+          onSubCategoryClick={handleStatSubCategoryClick}
         />
       </div>
 
@@ -525,7 +553,6 @@ export function Dashboard({
               activeSubCategory={activeSubCategory}
               onCategoryChange={handleCategoryChange}
               onSubCategoryChange={setActiveSubCategory}
-              counts={counts}
             />
             <PaperSortFilter sort={sort} onSortChange={setSort} />
           </div>
@@ -539,20 +566,9 @@ export function Dashboard({
           </div>
 
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/40 px-4 py-2.5">
-            <div className="min-w-0 flex flex-wrap items-baseline gap-x-1.5">
-              <span className="text-sm font-medium text-slate-300">
-                {listTitle}
-              </span>
-              {listInlineSubLabels && (
-                <span className="text-[10px] text-slate-500 sm:text-[11px]">
-                  {listInlineSubLabels}
-                </span>
-              )}
-              <span className="text-[10px] text-slate-500 sm:text-[11px]">
-                {listInlineSubLabels ? "· " : ""}논문 {contentCountsForScope.papers}{" "}
-                · 뉴스 {contentCountsForScope.news}
-              </span>
-            </div>
+            <span className="min-w-0 text-sm font-medium text-slate-300">
+              {listTitle}
+            </span>
             <span className="shrink-0 text-xs text-slate-500">
               {loading
                 ? "불러오는 중..."
@@ -605,62 +621,73 @@ export function Dashboard({
 }
 
 function Stat({
+  category,
   label,
-  value,
   color,
-  subLabels,
+  subCategories,
+  chipActiveClass = "",
   compact = false,
-  active = false,
+  activeCategory,
+  activeSubCategory,
   activeClass = "",
-  onClick,
+  onCategoryClick,
+  onSubCategoryClick,
 }: {
+  category: MainCategory;
   label: string;
-  value: number;
   color: string;
-  subLabels?: string;
+  subCategories?: SubCategory[];
+  chipActiveClass?: string;
   compact?: boolean;
-  active?: boolean;
+  activeCategory: MainCategory | "all";
+  activeSubCategory: SubCategory | "all";
   activeClass?: string;
-  onClick?: () => void;
+  onCategoryClick: (category: MainCategory) => void;
+  onSubCategoryClick: (category: MainCategory, sub: SubCategory) => void;
 }) {
+  const isActive = activeCategory === category;
+  const isMainActive = isActive && activeSubCategory === "all";
+
   const baseClass = compact
-    ? "shrink-0 rounded-lg border border-slate-700/80 bg-slate-900/60 px-3 py-2 text-center transition duration-150 hover:border-slate-600 hover:bg-slate-800/80"
-    : "rounded-lg border border-slate-700/80 bg-slate-900/50 px-3 py-2 text-center transition duration-150 hover:border-slate-600 hover:bg-slate-800/80";
-
-  const content = (
-    <>
-      <p className={`${compact ? "text-sm" : "text-lg"} font-bold ${color}`}>
-        {value}
-      </p>
-      <div className="flex flex-wrap items-baseline justify-center gap-x-1">
-        <span
-          className={`text-[10px] ${active ? "font-semibold text-slate-300" : "text-slate-500"}`}
-        >
-          {label}
-        </span>
-        {subLabels && (
-          <span
-            className={`text-[9px] sm:text-[10px] ${active ? "text-slate-400" : "text-slate-600"}`}
-          >
-            {subLabels}
-          </span>
-        )}
-      </div>
-    </>
-  );
-
-  if (!onClick) {
-    return <div className={baseClass}>{content}</div>;
-  }
+    ? "shrink-0 rounded-lg border border-slate-700/80 bg-slate-900/60 px-3 py-2 text-center transition duration-150"
+    : "rounded-lg border border-slate-700/80 bg-slate-900/50 px-3 py-2 text-center transition duration-150";
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`${baseClass} ${active ? `${activeClass} scale-[1.03]` : ""}`}
+    <div
+      className={`${baseClass} ${isActive ? `${activeClass} scale-[1.03]` : "hover:border-slate-600 hover:bg-slate-800/80"}`}
     >
-      {content}
-    </button>
+      <button
+        type="button"
+        onClick={() => onCategoryClick(category)}
+        aria-pressed={isMainActive}
+        className={`w-full text-[10px] font-semibold transition ${
+          isActive ? color : "text-slate-500 hover:text-slate-300"
+        }`}
+      >
+        {label}
+      </button>
+      {subCategories && subCategories.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
+          {subCategories.map((sub) => {
+            const isSubActive = isActive && activeSubCategory === sub;
+            return (
+              <button
+                key={sub}
+                type="button"
+                onClick={() => onSubCategoryClick(category, sub)}
+                aria-pressed={isSubActive}
+                className={`rounded-md border px-1.5 py-0.5 text-[9px] font-medium transition sm:text-[10px] ${
+                  isSubActive
+                    ? chipActiveClass
+                    : "border-transparent text-slate-600 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-400"
+                }`}
+              >
+                {SUB_CATEGORY_LABELS[sub]}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
