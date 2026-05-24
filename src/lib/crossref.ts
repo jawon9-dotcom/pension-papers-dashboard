@@ -12,7 +12,7 @@ import {
   getDefaultYearTo,
   pickRotatedQueries,
 } from "./period";
-import { isPaperRelevant, RelevanceMode } from "./relevance";
+import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
 
 const CROSSREF_BASE = "https://api.crossref.org/works";
 const CONTACT_EMAIL =
@@ -55,6 +55,12 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
   },
   { query: "public pension fund governance", mode: "default" },
   { query: "institutional pension portfolio management", mode: "default" },
+  { query: "national pension fund investment", mode: "default" },
+  { query: "pension fund economics finance", mode: "default" },
+  { query: "pension fund asset management", mode: "default" },
+  { query: "pension fund accounting actuarial", mode: "default" },
+  { query: "quantitative portfolio pension fund", mode: "default" },
+  { query: "pension fund mathematics optimization", mode: "default" },
   { query: "pension fund white paper", mode: "industry" },
   { query: "pension industry research report", mode: "industry" },
   { query: "retirement plan investment policy statement", mode: "industry" },
@@ -71,6 +77,7 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
 
 const CORE_CROSSREF_QUERIES: CrossRefQuerySpec[] = [
   { query: "pension fund asset allocation", mode: "default" },
+  { query: "national pension fund investment", mode: "default" },
   { query: "pension fund white paper", mode: "industry" },
   { query: "pension industry research report", mode: "industry" },
   { query: "total portfolio approach pension", mode: "tpa" },
@@ -288,7 +295,18 @@ export async function fetchLatestPapers(
     }
   }
 
-  papers.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
+  papers.sort((a, b) => {
+    const citationDiff = (b.citationCount ?? 0) - (a.citationCount ?? 0);
+    const relevanceDiff =
+      scorePaperRelevance(b.title, b.abstract) -
+      scorePaperRelevance(a.title, a.abstract);
+    return (
+      citationDiff ||
+      b.year - a.year ||
+      relevanceDiff ||
+      a.title.localeCompare(b.title)
+    );
+  });
   return papers.slice(0, maxTotal);
 }
 

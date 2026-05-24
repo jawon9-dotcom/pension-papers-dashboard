@@ -8,6 +8,7 @@ const PENSION_CORE = [
   "public pension",
   "defined benefit",
   "defined contribution",
+  "national pension",
 ];
 
 const INSTITUTIONAL_CORE = [
@@ -21,6 +22,8 @@ const INSTITUTIONAL_CORE = [
   "endowment",
   "super fund",
   "trustee",
+  "fund manager",
+  "pension fund",
 ];
 
 const FINANCE_CONTEXT = [
@@ -47,7 +50,56 @@ const FINANCE_CONTEXT = [
   "institutional",
   "white paper",
   "outlook",
+  "asset management",
 ];
+
+const FUND_MANAGER_DOMAIN_SIGNALS: Array<{ terms: string[]; weight: number }> =
+  [
+    {
+      terms: [
+        "national pension",
+        "public pension fund",
+        "sovereign pension",
+        "government pension",
+      ],
+      weight: 14,
+    },
+    {
+      terms: ["pension fund", "pension plan", "retirement fund"],
+      weight: 12,
+    },
+    {
+      terms: ["fund manager", "asset owner", "institutional investor"],
+      weight: 10,
+    },
+    {
+      terms: ["asset management", "portfolio management"],
+      weight: 9,
+    },
+    { terms: ["finance", "financial"], weight: 7 },
+    { terms: ["economics", "econometric", "macroeconomic"], weight: 7 },
+    { terms: ["accounting", "actuarial"], weight: 7 },
+    {
+      terms: [
+        "mathematics",
+        "mathematical",
+        "quantitative",
+        "stochastic",
+        "optimization",
+      ],
+      weight: 6,
+    },
+    {
+      terms: [
+        "computer science",
+        "machine learning",
+        "artificial intelligence",
+        "algorithm",
+        "data science",
+      ],
+      weight: 5,
+    },
+  ];
 
 const TPA_TERMS = [
   "total portfolio approach",
@@ -56,6 +108,56 @@ const TPA_TERMS = [
   "policy reference portfolio",
   "reference portfolio framework",
 ];
+
+function countMatches(text: string, terms: string[]): number {
+  return terms.reduce((count, term) => (text.includes(term) ? count + 1 : count), 0);
+}
+
+/** National pension fund 운용 fund manager 관점의 관련도 점수 */
+export function scorePaperRelevance(title: string, abstract: string): number {
+  const text = `${title} ${abstract}`.toLowerCase();
+  const titleLower = title.toLowerCase();
+  let score = 0;
+
+  for (const group of FUND_MANAGER_DOMAIN_SIGNALS) {
+    const hits = countMatches(text, group.terms);
+    if (hits > 0) {
+      score += group.weight * hits;
+    }
+  }
+
+  if (PENSION_CORE.some((kw) => text.includes(kw))) score += 8;
+  if (INSTITUTIONAL_CORE.some((kw) => text.includes(kw))) score += 4;
+  if (FINANCE_CONTEXT.some((kw) => text.includes(kw))) score += 3;
+  if (hasTrueTpaSignal(title, text)) score += 10;
+
+  if (titleLower.includes("pension") || titleLower.includes("retirement")) {
+    score += 6;
+  }
+
+  const hasQuantOrCs = [
+    "mathematics",
+    "mathematical",
+    "computer science",
+    "machine learning",
+    "algorithm",
+  ].some((term) => text.includes(term));
+
+  if (
+    hasQuantOrCs &&
+    !(
+      text.includes("pension") ||
+      text.includes("portfolio") ||
+      text.includes("asset") ||
+      text.includes("fund") ||
+      text.includes("investment")
+    )
+  ) {
+    score -= 8;
+  }
+
+  return Math.max(0, score);
+}
 
 export function hasTrueTpaSignal(title: string, text: string): boolean {
   const titleLower = title.toLowerCase();
@@ -96,6 +198,7 @@ export function isPaperRelevant(
   const text = `${title} ${abstract}`.toLowerCase();
   const titleLower = title.toLowerCase();
   const normalizedType = publicationType?.toLowerCase().replace(/\s+/g, "-");
+  const relevanceScore = scorePaperRelevance(title, abstract);
 
   if (mode === "tpa") {
     if (!hasTrueTpaSignal(title, text)) return false;
@@ -124,15 +227,23 @@ export function isPaperRelevant(
     }
 
     if (normalizedType && INDUSTRY_PUBLICATION_TYPES.has(normalizedType)) {
-      return FINANCE_CONTEXT.some((kw) => text.includes(kw));
+      return (
+        FINANCE_CONTEXT.some((kw) => text.includes(kw)) || relevanceScore >= 12
+      );
     }
 
-    return false;
+    return relevanceScore >= 14;
   }
 
-  if (!PENSION_CORE.some((kw) => text.includes(kw))) {
-    if (!hasTrueTpaSignal(title, text)) return false;
+  if (PENSION_CORE.some((kw) => text.includes(kw))) {
+    return (
+      FINANCE_CONTEXT.some((kw) => text.includes(kw)) || relevanceScore >= 10
+    );
+  }
+
+  if (hasTrueTpaSignal(title, text)) {
     return INSTITUTIONAL_CORE.some((kw) => text.includes(kw));
   }
-  return FINANCE_CONTEXT.some((kw) => text.includes(kw));
+
+  return relevanceScore >= 16;
 }

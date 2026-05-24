@@ -22,7 +22,7 @@ function getSortButtonLabel(field: PaperSortField, sort: PaperSortState): string
     return "최신순";
   }
 
-  return "인용순";
+  return "인용순 · 최신순";
 }
 
 export function PaperSortFilter({ sort, onSortChange }: PaperSortFilterProps) {
@@ -53,6 +53,11 @@ export function PaperSortFilter({ sort, onSortChange }: PaperSortFilterProps) {
           })}
         </div>
       </div>
+      {sort.field === "citations" && (
+        <p className="mt-2 text-[10px] text-slate-600">
+          논문은 인용수가 많은 순, 같으면 최신순으로 표시됩니다
+        </p>
+      )}
       {sort.field === "newest" && (
         <p className="mt-2 text-[10px] text-slate-600">
           {getPaperSortLabel(sort)} · 최신순을 다시 누르면 순서가 바뀝니다

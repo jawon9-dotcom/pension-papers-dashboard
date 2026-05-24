@@ -17,7 +17,7 @@ import {
   getMaxPapersForPeriod,
   pickRotatedQueries,
 } from "./period";
-import { isPaperRelevant, RelevanceMode } from "./relevance";
+import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
 import { appendTpaNewsArticles, fetchTpaNewsArticles } from "./tpa-news";
 
 const OPENALEX_BASE = "https://api.openalex.org/works";
@@ -58,6 +58,13 @@ const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
   { filter: "title.search:public pension", mode: "default" },
   { filter: "title.search:pension fund strategy", mode: "default" },
   { filter: "title.search:pension portfolio policy", mode: "default" },
+  { filter: "title.search:national pension fund", mode: "default" },
+  { filter: "default.search:pension fund economics", mode: "default" },
+  { filter: "default.search:pension fund finance", mode: "default" },
+  { filter: "default.search:asset management pension", mode: "default" },
+  { filter: "default.search:accounting pension fund", mode: "default" },
+  { filter: "default.search:quantitative portfolio institutional", mode: "default" },
+  { filter: "default.search:pension fund mathematics", mode: "default" },
   {
     filter: "title.search:pension fund white paper,type:report|preprint",
     mode: "industry",
@@ -114,6 +121,7 @@ const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
 
 const CORE_OPENALEX_QUERIES: OpenAlexQuerySpec[] = [
   { filter: "title.search:pension fund", mode: "default" },
+  { filter: "title.search:national pension fund", mode: "default" },
   { filter: "title.search:pension investment", mode: "default" },
   {
     filter: "title.search:pension fund white paper,type:report|preprint",
@@ -360,7 +368,18 @@ function mergePaperLists(
     }
   }
 
-  merged.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
+  merged.sort((a, b) => {
+    const citationDiff = (b.citationCount ?? 0) - (a.citationCount ?? 0);
+    const relevanceDiff =
+      scorePaperRelevance(b.title, b.abstract) -
+      scorePaperRelevance(a.title, a.abstract);
+    return (
+      citationDiff ||
+      b.year - a.year ||
+      relevanceDiff ||
+      a.title.localeCompare(b.title)
+    );
+  });
   return merged;
 }
 
