@@ -6,6 +6,7 @@ import {
   CATEGORY_LABELS,
   SUB_CATEGORY_LABELS,
   getPublicationSourceLabel,
+  formatNewsPublishDate,
 } from "@/types/paper";
 import { formatPopularityScore } from "@/lib/source";
 import { PaperMetaBadges } from "./PaperMetaBadges";
@@ -43,11 +44,6 @@ function NewsHeader({
           size="md"
           showLink={false}
         />
-        <span className="text-xs text-slate-500">{paper.year}</span>
-        <span className="text-xs text-slate-500">·</span>
-        <span className="text-xs text-slate-400">
-          {getPublicationSourceLabel(paper)}
-        </span>
       </div>
       <h2 className="text-lg font-bold leading-snug text-white sm:text-xl">
         {displayTitleKo}
@@ -58,6 +54,16 @@ function NewsHeader({
       {paper.authors[0] && (
         <p className="mt-2 text-xs text-slate-500">{paper.authors.join(", ")}</p>
       )}
+      <div className="mt-2 space-y-0.5">
+        <p className="text-xs text-slate-400">
+          {getPublicationSourceLabel(paper)}
+        </p>
+        {formatNewsPublishDate(paper) && (
+          <p className="text-xs text-slate-500">
+            게시일 {formatNewsPublishDate(paper)}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -9,7 +9,9 @@ import {
   SUB_CATEGORY_LABELS,
   CATEGORY_COLORS,
   getPublicationSourceLabel,
+  formatNewsPublishDate,
 } from "@/types/paper";
+import { getListDisplayTitle } from "@/lib/title-ko";
 import { AbstractPopup } from "./AbstractPopup";
 import { CountryFlag } from "./CountryFlag";
 import { PaperMetaBadges } from "./PaperMetaBadges";
@@ -100,6 +102,7 @@ export function PaperList({
           const isSelected = paper.id === selectedId;
           const isNews = paper.isNewsArticle === true;
           const isSaved = savedIds?.has(paper.id) ?? false;
+          const displayTitle = getListDisplayTitle(paper);
 
           return (
             <div
@@ -124,7 +127,7 @@ export function PaperList({
                     checked={isSaved}
                     onChange={() => onToggleSave(paper)}
                     className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-sky-500/40"
-                    aria-label={`${paper.titleKo} 나의 목록에 저장`}
+                    aria-label={`${displayTitle} 나의 목록에 저장`}
                   />
                 </label>
               )}
@@ -170,15 +173,20 @@ export function PaperList({
                 <span className="text-[10px] text-slate-500">{paper.year}</span>
               </div>
               <h3 className="text-[15px] font-semibold leading-snug text-slate-100 sm:text-sm">
-                {paper.titleKo}
+                {displayTitle}
               </h3>
-              <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-500 sm:mt-1 sm:line-clamp-1 sm:text-xs">
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-500 sm:mt-1 sm:text-xs">
                 {paper.authors.join(", ")}
                 <span className="text-slate-600"> · </span>
                 <span className="text-slate-400">
                   {getPublicationSourceLabel(paper)}
                 </span>
               </p>
+              {isNews && formatNewsPublishDate(paper) && (
+                <p className="mt-0.5 text-[10px] text-slate-500 sm:text-[11px]">
+                  {formatNewsPublishDate(paper)}
+                </p>
+              )}
               </button>
             </div>
           );

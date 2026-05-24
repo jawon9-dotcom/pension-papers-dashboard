@@ -21,6 +21,7 @@ export interface SavedPaperItem {
   countryCode?: string;
   citationCount?: number;
   popularityScore?: number;
+  publishedAt?: string;
   savedAt: string;
 }
 
@@ -44,6 +45,7 @@ export function paperToSavedItem(paper: Paper): SavedPaperItem {
     countryCode: paper.countryCode,
     citationCount: paper.citationCount,
     popularityScore: paper.popularityScore,
+    publishedAt: paper.publishedAt,
     savedAt: new Date().toISOString(),
   };
 }
@@ -68,6 +70,7 @@ export function savedItemToPaper(item: SavedPaperItem): Paper {
     countryCode: item.countryCode,
     citationCount: item.citationCount,
     popularityScore: item.popularityScore,
+    publishedAt: item.publishedAt,
   };
 }
 

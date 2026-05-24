@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Paper, MainCategory, SubCategory, CATEGORY_LABELS, getCategoryInlineSubLabels } from "@/types/paper";
+import { needsKoreanTitle } from "@/lib/title-ko";
 import { CitationGraphNode } from "@/types/citation-graph";
 import {
   clampYearRange,
@@ -84,6 +85,7 @@ export function Dashboard({
   const [mobilePanel, setMobilePanel] = useState<"list" | "detail">("list");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedSnapshot, setSelectedSnapshot] = useState<Paper | null>(null);
+  const titleTranslationAttemptRef = useRef(new Set<string>());
 
   const loadPapers = useCallback(
     async (refresh = false, period = appliedPeriod) => {
@@ -102,6 +104,7 @@ export function Dashboard({
         if (!res.ok) throw new Error("논문 목록을 불러오지 못했습니다.");
 
         const data = await res.json();
+        titleTranslationAttemptRef.current.clear();
         setPapers(data.papers);
         setMeta(data.meta);
         setAppliedPeriod(period);
@@ -121,6 +124,58 @@ export function Dashboard({
     if (!autoFetchOnMount) return;
     void loadPapers(false);
   }, [autoFetchOnMount, loadPapers]);
+
+  useEffect(() => {
+    if (!apiKey) return;
+
+    const pending = papers.filter(
+      (paper) =>
+        needsKoreanTitle(paper) &&
+        !titleTranslationAttemptRef.current.has(paper.id)
+    );
+    if (pending.length === 0) return;
+
+    pending
+      .slice(0, 50)
+      .forEach((paper) => titleTranslationAttemptRef.current.add(paper.id));
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/papers/titles-ko", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            papers: pending.slice(0, 50).map((paper) => ({
+              id: paper.id,
+              title: paper.title,
+              titleKo: paper.titleKo,
+            })),
+            openaiApiKey: apiKey,
+          }),
+        });
+
+        if (!res.ok || cancelled) return;
+
+        const data = (await res.json()) as { titles?: Record<string, string> };
+        const titles = data.titles ?? {};
+        if (Object.keys(titles).length === 0) return;
+
+        setPapers((prev) =>
+          prev.map((paper) =>
+            titles[paper.id] ? { ...paper, titleKo: titles[paper.id]! } : paper
+          )
+        );
+      } catch {
+        // 목록 제목 번역 실패 시 영문 제목 유지
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiKey, papers]);
 
   const handleApplyPeriod = () => {
     const period = clampYearRange(yearFrom, yearTo);

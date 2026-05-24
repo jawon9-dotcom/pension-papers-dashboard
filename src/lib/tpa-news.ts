@@ -192,6 +192,21 @@ function parseIsoYear(iso?: string): number {
   return Number.isFinite(year) ? year : new Date().getFullYear();
 }
 
+function toIsoDateString(value?: string): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
+function parseGdeltPublishedAt(seenDate?: string): string | undefined {
+  if (!seenDate || seenDate.length < 8) return undefined;
+  const year = seenDate.slice(0, 4);
+  const month = seenDate.slice(4, 6);
+  const day = seenDate.slice(6, 8);
+  return toIsoDateString(`${year}-${month}-${day}T12:00:00Z`);
+}
+
 function getDomainPopularity(domain?: string): number {
   if (!domain) return 40;
   const normalized = domain.replace(/^www\./, "").toLowerCase();
@@ -371,6 +386,7 @@ function mapNewsToPaper(
     popularityScore: number;
     idPrefix: string;
     publisherUrl?: string;
+    publishedAt?: string;
   },
   period: FetchPeriod
 ): Paper | null {
@@ -413,6 +429,7 @@ function mapNewsToPaper(
     publicationType: "news article",
     isNewsArticle: true,
     popularityScore: input.popularityScore,
+    publishedAt: input.publishedAt,
   };
 }
 
@@ -522,6 +539,7 @@ async function fetchGdeltTpaNews(period: FetchPeriod): Promise<Paper[]> {
             sourceLabel: getSourceSiteLabel(article.url),
             popularityScore,
             idPrefix: "news-gdelt",
+            publishedAt: parseGdeltPublishedAt(article.seendate),
           },
           period
         );
@@ -583,6 +601,7 @@ async function fetchNewsApiTpaNews(period: FetchPeriod): Promise<Paper[]> {
             sourceLabel: article.source?.name ?? getSourceSiteLabel(article.url),
             popularityScore,
             idPrefix: "news-api",
+            publishedAt: toIsoDateString(article.publishedAt),
           },
           period
         );
@@ -760,10 +779,11 @@ async function fetchSingleGoogleNewsRssQuery(
           description: title,
           sourceLabel:
             parsedTitle.sourceLabel || source || getSourceSiteLabel(link),
-          popularityScore,
-          idPrefix: "news-rss",
-          publisherUrl: publisherUrl || undefined,
-        },
+            popularityScore,
+            idPrefix: "news-rss",
+            publisherUrl: publisherUrl || undefined,
+            publishedAt: toIsoDateString(pubDate),
+          },
         period
       );
 

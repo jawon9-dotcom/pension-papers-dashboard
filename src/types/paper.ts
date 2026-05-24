@@ -30,6 +30,8 @@ export interface Paper {
   publicationType?: string;
   isNewsArticle?: boolean;
   popularityScore?: number;
+  /** ISO 8601 — 뉴스 기사 게시일 */
+  publishedAt?: string;
 }
 
 export const CATEGORY_LABELS: Record<MainCategory, string> = {
@@ -40,10 +42,10 @@ export const CATEGORY_LABELS: Record<MainCategory, string> = {
 };
 
 export const ALLOCATION_SUB_CATEGORY_LABELS: Record<AllocationSubCategory, string> = {
-  saa: "SAA(전략적 자산배분)",
-  taa: "TAA(전술적 자산배분)",
-  tpa: "TPA(기준포트폴리오·Reference Portfolio)",
-  "strategy-general": "그 외 운용전략",
+  saa: "SAA",
+  taa: "TAA",
+  tpa: "TPA",
+  "strategy-general": "그 외",
 };
 
 export const MANAGEMENT_SUB_CATEGORY_LABELS: Record<ManagementSubCategory, string> = {
@@ -66,7 +68,7 @@ export const CATEGORY_COLORS: Record<MainCategory, string> = {
 
 export const CATEGORY_INLINE_SUB_LABELS: Partial<Record<MainCategory, string>> =
   {
-    "asset-allocation": "SAA · TAA · TPA",
+    "asset-allocation": "SAA · TAA · TPA · 그 외",
     "asset-management": "주식 · 채권 · 대체투자",
   };
 
@@ -89,4 +91,22 @@ export function getPublicationSourceLabel(paper: Paper): string {
     return paper.publicationType;
   }
   return paper.sourceSite ?? "원문";
+}
+
+export function formatNewsPublishDate(paper: Paper): string | null {
+  if (!paper.isNewsArticle) return null;
+
+  if (paper.publishedAt) {
+    const date = new Date(paper.publishedAt);
+    if (Number.isFinite(date.getTime())) {
+      return date.toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+  }
+
+  if (paper.year) return `${paper.year}년`;
+  return null;
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchLatestPapers } from "@/lib/openalex";
 import { getCachedPapers, setCachedPapers } from "@/lib/cache";
 import { papers as fallbackPapers } from "@/data/papers";
+import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
 import { sleep } from "@/lib/fetch-utils";
 import { getFetchBudgetMs } from "@/lib/server-env";
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       const cached = await getCachedPapers(period.yearFrom, period.yearTo);
       if (cached) {
         return NextResponse.json({
-          papers: enrichPapers(cached.papers),
+          papers: enrichPapers(await applyCachedTitles(cached.papers)),
           meta: {
             source: "cache",
             count: cached.papers.length,
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
       fetchLatestPapers(period),
       sleep(getFetchBudgetMs()).then(() => null),
     ]);
-    const papers = enrichPapers(fetched ?? []);
+    const papers = enrichPapers(await applyCachedTitles(fetched ?? []));
 
     if (papers.length < 8) {
       const existingIds = new Set(papers.map((p) => p.id));

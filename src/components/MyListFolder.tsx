@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { SavedPaperItem } from "@/lib/my-list";
+import { SavedPaperItem, savedItemToPaper } from "@/lib/my-list";
+import { getListDisplayTitle } from "@/lib/title-ko";
 import {
   CATEGORY_LABELS,
   SUB_CATEGORY_LABELS,
   getPublicationSourceLabel,
+  formatNewsPublishDate,
 } from "@/types/paper";
-import { savedItemToPaper } from "@/lib/my-list";
 
 interface MyListFolderProps {
   items: SavedPaperItem[];
@@ -30,11 +31,13 @@ export function MyListFolder({
   };
 
   return (
-    <div className="relative">
+    <div className={`relative ${open ? "z-[71]" : ""}`}>
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition sm:py-1.5 ${
+        className={`relative inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition sm:py-1.5 ${
+          open ? "z-[72]" : ""
+        } ${
           items.length > 0
             ? "border-sky-700/60 bg-sky-950/30 text-sky-300 hover:bg-sky-950/50"
             : "border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700"
@@ -67,11 +70,11 @@ export function MyListFolder({
           <button
             type="button"
             aria-label="닫기"
-            className="fixed inset-0 z-40 bg-black/60 sm:hidden"
+            className="fixed inset-0 z-[60] bg-slate-950/75 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed inset-x-3 top-14 z-50 flex max-h-[min(78dvh,calc(100dvh-4rem))] flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] sm:max-h-[70vh]">
-            <div className="border-b border-slate-800 px-4 py-3">
+          <div className="fixed inset-x-3 top-14 z-[70] flex max-h-[min(78dvh,calc(100dvh-4rem))] flex-col overflow-hidden rounded-xl border border-slate-600 bg-slate-950 shadow-2xl ring-1 ring-slate-700/80 sm:inset-x-auto sm:right-4 sm:top-[4.25rem] sm:w-[min(360px,calc(100vw-2rem))] sm:max-h-[min(70dvh,calc(100dvh-5rem))]">
+            <div className="shrink-0 border-b border-slate-700 bg-slate-950 px-4 py-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold text-slate-100">
@@ -93,9 +96,9 @@ export function MyListFolder({
               </div>
             </div>
 
-            <div className="scroll-area min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3">
+            <div className="scroll-area min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-slate-950 p-3">
               {items.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/60 px-4 py-8 text-center">
+                <div className="rounded-lg border border-dashed border-slate-600 bg-slate-900 px-4 py-8 text-center">
                   <p className="text-sm text-slate-400">저장된 항목이 없습니다.</p>
                   <p className="mt-1 text-[11px] text-slate-500">
                     목록에서 체크하면 여기에 추가됩니다.
@@ -112,8 +115,8 @@ export function MyListFolder({
                         key={item.id}
                         className={`rounded-lg border p-3 ${
                           isNews
-                            ? "border-rose-500/25 bg-rose-950/20"
-                            : "border-slate-700/60 bg-slate-800/40"
+                            ? "border-rose-500/40 bg-rose-950"
+                            : "border-slate-600 bg-slate-900"
                         }`}
                       >
                         <div className="mb-2 flex flex-wrap items-center gap-1.5">
@@ -142,13 +145,18 @@ export function MyListFolder({
                           className="w-full text-left"
                         >
                           <p className="text-sm font-medium leading-snug text-slate-100">
-                            {item.titleKo || item.title}
+                            {getListDisplayTitle(paper)}
                           </p>
                           <p className="mt-1 line-clamp-2 text-[11px] text-slate-500">
                             {item.authors.join(", ")}
                             <span className="text-slate-600"> · </span>
                             {getPublicationSourceLabel(paper)}
                           </p>
+                          {isNews && formatNewsPublishDate(paper) && (
+                            <p className="mt-0.5 text-[10px] text-slate-500">
+                              {formatNewsPublishDate(paper)}
+                            </p>
+                          )}
                         </button>
 
                         <div className="mt-2 flex items-center justify-between gap-2">
