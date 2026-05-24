@@ -23,6 +23,16 @@ import {
   isGlobalPensionNews,
   isKoreaDomesticNews,
 } from "./global-pension-trends";
+import {
+  PERFORMANCE_EVALUATION_NEWS_SEARCHES,
+  PERFORMANCE_GLOBAL_GOOGLE_RSS_SEARCHES,
+  PERFORMANCE_KOREA_GOOGLE_RSS_SEARCHES,
+  PERFORMANCE_NEWS_GLOBAL_RATIO,
+  PERFORMANCE_NEWS_KOREA_RATIO,
+  PERFORMANCE_NEWS_MAX,
+  hasPerformanceEvaluationNewsSignal,
+  isPerformanceEvaluationNewsCandidate,
+} from "./performance-evaluation-news";
 import { isServerlessEnv } from "./server-env";
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
@@ -353,8 +363,12 @@ function isPensionNewsCandidate(title: string, description: string): boolean {
 function categorizeNewsArticle(
   title: string,
   description: string
-): { category: MainCategory; subCategory: SubCategory } {
+): { category: MainCategory; subCategory?: SubCategory } {
   const text = `${title} ${description}`.toLowerCase();
+
+  if (hasPerformanceEvaluationNewsSignal(title, text)) {
+    return { category: "performance-evaluation" };
+  }
 
   if (hasTrueTpaSignal(title, text)) {
     return { category: "asset-allocation", subCategory: "tpa" };
@@ -444,6 +458,8 @@ function mapNewsToPaper(
     idPrefix: string;
     publisherUrl?: string;
     publishedAt?: string;
+    forceCategory?: MainCategory;
+    candidateCheck?: (title: string, description: string) => boolean;
   },
   period: FetchPeriod
 ): Paper | null {
@@ -455,7 +471,9 @@ function mapNewsToPaper(
   const urlHostname = normalizeHostname(input.url);
   if (urlHostname === "news.google.com" && !input.publisherUrl) return null;
   if (!isTrustedNewsPublisher(trustUrl, title, input.description)) return null;
-  if (!isPensionNewsCandidate(title, input.description)) return null;
+
+  const candidateCheck = input.candidateCheck ?? isPensionNewsCandidate;
+  if (!candidateCheck(title, input.description)) return null;
   if (
     isExcludedRegionPaper({
       title,
@@ -466,10 +484,9 @@ function mapNewsToPaper(
     return null;
   }
 
-  const { category, subCategory } = categorizeNewsArticle(
-    title,
-    input.description
-  );
+  const { category, subCategory } = input.forceCategory
+    ? { category: input.forceCategory, subCategory: undefined }
+    : categorizeNewsArticle(title, input.description);
 
   const abstract =
     input.description.trim() ||
@@ -801,7 +818,12 @@ function parseGoogleNewsTitle(rawTitle: string): {
 
 async function fetchSingleGoogleNewsRssQuery(
   search: { query: string; hl: string; gl: string; ceid: string },
-  period: FetchPeriod
+  period: FetchPeriod,
+  mapOptions?: {
+    forceCategory?: MainCategory;
+    candidateCheck?: (title: string, description: string) => boolean;
+    idPrefix?: string;
+  }
 ): Promise<Paper[]> {
   const rssUrl = `https://news.google.com/rss/search?q=${search.query}&hl=${search.hl}&gl=${search.gl}&ceid=${search.ceid}`;
   const papers: Paper[] = [];
@@ -847,11 +869,13 @@ async function fetchSingleGoogleNewsRssQuery(
           description: title,
           sourceLabel:
             parsedTitle.sourceLabel || source || getSourceSiteLabel(link),
-            popularityScore,
-            idPrefix: "news-rss",
-            publisherUrl: publisherUrl || undefined,
-            publishedAt: toIsoDateString(pubDate),
-          },
+          popularityScore,
+          idPrefix: mapOptions?.idPrefix ?? "news-rss",
+          publisherUrl: publisherUrl || undefined,
+          publishedAt: toIsoDateString(pubDate),
+          forceCategory: mapOptions?.forceCategory,
+          candidateCheck: mapOptions?.candidateCheck,
+        },
         period
       );
 
@@ -946,6 +970,259 @@ function getNewsRankScore(paper: Paper): number {
     score += 120;
   }
   return score;
+}
+
+function getNewsRecencyMs(paper: Paper): number {
+  if (paper.publishedAt) {
+    const time = new Date(paper.publishedAt).getTime();
+    if (Number.isFinite(time)) return time;
+  }
+  return paper.year * 31_536_000_000;
+}
+
+function getNewsTrustTier(paper: Paper): number {
+  const url = paper.originalUrl;
+  if (isFinancialNewsDomain(url)) return 3;
+  if (isKoreanTrustedNewsDomain(url)) return 3;
+  if (isTrustedNewsPublisher(url, paper.title, paper.abstract)) return 2;
+  return 1;
+}
+
+function compareNewsByTrustAndRecency(a: Paper, b: Paper): number {
+  const trustDiff = getNewsTrustTier(b) - getNewsTrustTier(a);
+  if (trustDiff !== 0) return trustDiff;
+  return getNewsRecencyMs(b) - getNewsRecencyMs(a);
+}
+
+function dedupeNewsArticles(papers: Paper[]): Paper[] {
+  const seenUrls = new Set<string>();
+  const seenTitles = new Set<string>();
+  const merged: Paper[] = [];
+
+  for (const paper of papers) {
+    const urlKey = paper.originalUrl.toLowerCase();
+    const titleKey = paper.title.toLowerCase();
+    if (seenUrls.has(urlKey) || seenTitles.has(titleKey)) continue;
+    seenUrls.add(urlKey);
+    seenTitles.add(titleKey);
+    merged.push(paper);
+  }
+
+  return merged;
+}
+
+const PERFORMANCE_NEWS_CATEGORY_OPTIONS = {
+  forceCategory: "performance-evaluation" as MainCategory,
+  candidateCheck: isPerformanceEvaluationNewsCandidate,
+};
+
+const PERFORMANCE_NEWS_RSS_OPTIONS = {
+  ...PERFORMANCE_NEWS_CATEGORY_OPTIONS,
+  idPrefix: "news-perf-rss",
+};
+
+async function fetchGdeltPerformanceNews(period: FetchPeriod): Promise<Paper[]> {
+  const start = formatGdeltDateTime(period.yearFrom, 1, 1);
+  const end = formatGdeltDateTime(period.yearTo, 12, 31);
+  const papers: Paper[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const query of PERFORMANCE_EVALUATION_NEWS_SEARCHES) {
+    const params = new URLSearchParams({
+      query,
+      mode: "artlist",
+      format: "json",
+      maxrecords: "30",
+      sort: "DateDesc",
+      STARTDATETIME: start,
+      ENDDATETIME: end,
+    });
+
+    try {
+      const res = await fetchWithTimeout(`${GDELT_DOC_API}?${params.toString()}`);
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as GdeltResponse;
+      for (const [index, article] of (data.articles ?? []).entries()) {
+        if (!article.url || !article.title || seenUrls.has(article.url)) continue;
+        seenUrls.add(article.url);
+
+        const rankBoost = Math.max(1, 30 - index);
+        const domainBoost = getDomainPopularity(article.domain);
+        const popularityScore = rankBoost * 25 + domainBoost * 10;
+
+        const paper = mapNewsToPaper(
+          {
+            title: article.title,
+            url: article.url,
+            year: parseGdeltYear(article.seendate),
+            description: article.title,
+            sourceLabel: getSourceSiteLabel(article.url),
+            popularityScore,
+            idPrefix: "news-perf-gdelt",
+            publishedAt: parseGdeltPublishedAt(article.seendate),
+            ...PERFORMANCE_NEWS_CATEGORY_OPTIONS,
+          },
+          period
+        );
+
+        if (paper) papers.push(paper);
+      }
+    } catch (error) {
+      console.warn("GDELT performance news fetch failed:", error);
+    }
+  }
+
+  return papers;
+}
+
+async function fetchNewsApiPerformanceNews(period: FetchPeriod): Promise<Paper[]> {
+  const apiKey = process.env.NEWS_API_KEY;
+  if (!apiKey) return [];
+
+  const papers: Paper[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const query of PERFORMANCE_EVALUATION_NEWS_SEARCHES) {
+    const isKoreanQuery = /[\uAC00-\uD7A3]/.test(query);
+    const params = new URLSearchParams({
+      q: query,
+      language: isKoreanQuery ? "ko" : "en",
+      sortBy: "publishedAt",
+      pageSize: "20",
+      from: `${period.yearFrom}-01-01`,
+      to: `${period.yearTo}-12-31`,
+      apiKey,
+    });
+
+    try {
+      const res = await fetch(`${NEWS_API_BASE}?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+
+      const data = (await res.json()) as NewsApiResponse;
+      for (const [index, article] of (data.articles ?? []).entries()) {
+        if (!article.url || !article.title || seenUrls.has(article.url)) continue;
+        seenUrls.add(article.url);
+
+        const popularityScore =
+          Math.max(1, 20 - index) * 30 +
+          getDomainPopularity(new URL(article.url).hostname) * 8;
+
+        const paper = mapNewsToPaper(
+          {
+            title: article.title,
+            url: article.url,
+            year: parseIsoYear(article.publishedAt),
+            description: article.description ?? article.title,
+            sourceLabel: article.source?.name ?? getSourceSiteLabel(article.url),
+            popularityScore,
+            idPrefix: "news-perf-api",
+            publishedAt: toIsoDateString(article.publishedAt),
+            ...PERFORMANCE_NEWS_CATEGORY_OPTIONS,
+          },
+          period
+        );
+
+        if (paper) papers.push(paper);
+      }
+    } catch (error) {
+      console.warn("NewsAPI performance news fetch failed:", error);
+    }
+  }
+
+  return papers;
+}
+
+async function fetchGoogleNewsPerformanceRss(period: FetchPeriod): Promise<Paper[]> {
+  const searches = [
+    ...PERFORMANCE_GLOBAL_GOOGLE_RSS_SEARCHES,
+    ...PERFORMANCE_KOREA_GOOGLE_RSS_SEARCHES,
+  ];
+
+  const results = await Promise.allSettled(
+    searches.map((search) =>
+      fetchSingleGoogleNewsRssQuery(search, period, PERFORMANCE_NEWS_RSS_OPTIONS)
+    )
+  );
+
+  const seenUrls = new Set<string>();
+  const papers: Paper[] = [];
+
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    for (const paper of result.value) {
+      const urlKey = paper.originalUrl.toLowerCase();
+      if (seenUrls.has(urlKey)) continue;
+      seenUrls.add(urlKey);
+      papers.push(paper);
+    }
+  }
+
+  return papers;
+}
+
+function mergePerformanceEvaluationNews(papers: Paper[]): Paper[] {
+  const merged = dedupeNewsArticles(papers);
+
+  const koreaDomestic = merged
+    .filter(isKoreaDomesticNews)
+    .sort(compareNewsByTrustAndRecency);
+  const globalNews = merged
+    .filter((paper) => !isKoreaDomesticNews(paper))
+    .sort(compareNewsByTrustAndRecency);
+
+  const ratioTotal =
+    PERFORMANCE_NEWS_GLOBAL_RATIO + PERFORMANCE_NEWS_KOREA_RATIO;
+  let koreaSlots = Math.round(
+    (PERFORMANCE_NEWS_MAX * PERFORMANCE_NEWS_KOREA_RATIO) / ratioTotal
+  );
+  let globalSlots = PERFORMANCE_NEWS_MAX - koreaSlots;
+
+  const koreaPick = koreaDomestic.slice(0, koreaSlots);
+  const globalPick = globalNews.slice(0, globalSlots);
+
+  const combined = [...globalPick, ...koreaPick];
+  const pickedUrls = new Set(combined.map((paper) => paper.originalUrl.toLowerCase()));
+
+  if (combined.length < PERFORMANCE_NEWS_MAX) {
+    for (const paper of [
+      ...globalNews.slice(globalPick.length),
+      ...koreaDomestic.slice(koreaPick.length),
+    ]) {
+      if (combined.length >= PERFORMANCE_NEWS_MAX) break;
+      const urlKey = paper.originalUrl.toLowerCase();
+      if (pickedUrls.has(urlKey)) continue;
+      pickedUrls.add(urlKey);
+      combined.push(paper);
+    }
+  }
+
+  combined.sort(compareNewsByTrustAndRecency);
+  return combined.slice(0, PERFORMANCE_NEWS_MAX);
+}
+
+export async function fetchPerformanceEvaluationNewsArticles(
+  period: FetchPeriod
+): Promise<Paper[]> {
+  const skipGdelt = isServerlessEnv();
+
+  if (skipGdelt) {
+    const [googleNews, newsApi] = await Promise.all([
+      fetchGoogleNewsPerformanceRss(period),
+      fetchNewsApiPerformanceNews(period),
+    ]);
+    return mergePerformanceEvaluationNews([googleNews, newsApi].flat());
+  }
+
+  const [googleNews, newsApi, gdeltNews] = await Promise.all([
+    fetchGoogleNewsPerformanceRss(period),
+    fetchNewsApiPerformanceNews(period),
+    fetchGdeltPerformanceNews(period),
+  ]);
+
+  return mergePerformanceEvaluationNews([googleNews, newsApi, gdeltNews].flat());
 }
 
 function mergeFetchedNews(sources: Paper[][]): Paper[] {

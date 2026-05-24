@@ -30,7 +30,11 @@ import {
   hasGlobalPensionTrendSignal,
 } from "./global-pension-trends";
 import { isKoreanPublication } from "./korean-publication";
-import { appendTpaNewsArticles, fetchTpaNewsArticles } from "./tpa-news";
+import {
+  appendTpaNewsArticles,
+  fetchPerformanceEvaluationNewsArticles,
+  fetchTpaNewsArticles,
+} from "./tpa-news";
 
 const OPENALEX_BASE = "https://api.openalex.org/works";
 const API_KEY = process.env.OPENALEX_API_KEY;
@@ -453,10 +457,12 @@ export async function fetchLatestPapers(
   );
   const maxTotal = getMaxPapersForPeriod(period.yearFrom, period.yearTo);
 
-  const [openalexPapers, crossrefPapers, tpaNewsArticles] = await Promise.all([
+  const [openalexPapers, crossrefPapers, tpaNewsArticles, performanceNewsArticles] =
+    await Promise.all([
     fetchFromOpenAlex(period),
     fetchFromCrossRef(period),
     fetchTpaNewsArticles(period),
+    fetchPerformanceEvaluationNewsArticles(period),
   ]);
 
   const merged = mergePaperLists(
@@ -466,8 +472,11 @@ export async function fetchLatestPapers(
 
   return enrichPapers(
     appendTpaNewsArticles(
-      mergeCuratedPapers(filterExcludedRegionPapers(merged), period),
-      tpaNewsArticles
+      appendTpaNewsArticles(
+        mergeCuratedPapers(filterExcludedRegionPapers(merged), period),
+        tpaNewsArticles
+      ),
+      performanceNewsArticles
     )
   );
 }
