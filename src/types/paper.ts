@@ -64,12 +64,17 @@ export const CATEGORY_COLORS: Record<MainCategory, string> = {
   "performance-evaluation": "violet",
 };
 
-export function getSubCategoryLabel(
-  category: MainCategory,
-  subCategory?: SubCategory
-): string | undefined {
-  if (!subCategory) return undefined;
-  return SUB_CATEGORY_LABELS[subCategory];
+export const CATEGORY_INLINE_SUB_LABELS: Partial<Record<MainCategory, string>> =
+  {
+    "asset-allocation": "SAA · TAA · TPA",
+    "asset-management": "주식 · 채권 · 대체투자",
+  };
+
+export function getCategoryInlineSubLabels(
+  category: MainCategory | "all"
+): string | null {
+  if (category === "all") return null;
+  return CATEGORY_INLINE_SUB_LABELS[category] ?? null;
 }
 
 export function getPublicationSourceLabel(paper: Paper): string {

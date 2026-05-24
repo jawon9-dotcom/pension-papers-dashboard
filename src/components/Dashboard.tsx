@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Paper, MainCategory, SubCategory, CATEGORY_LABELS } from "@/types/paper";
+import { Paper, MainCategory, SubCategory, CATEGORY_LABELS, getCategoryInlineSubLabels } from "@/types/paper";
 import { CitationGraphNode } from "@/types/citation-graph";
 import {
   clampYearRange,
@@ -16,7 +16,7 @@ import {
   sortPapers,
 } from "@/lib/paper-sort";
 import { CategoryFilter } from "./CategoryFilter";
-import { ContentTypeFilter, ContentType, getContentTypeLabel } from "./ContentTypeFilter";
+import { ContentTypeTabs, ContentType, getContentTypeLabel } from "./ContentTypeFilter";
 import { OpenAiKeySettings } from "./OpenAiKeySettings";
 import { PeriodFilter } from "./PeriodFilter";
 import { PaperList } from "./PaperList";
@@ -176,23 +176,48 @@ export function Dashboard({
     return filteredPapers[0];
   }, [filteredPapers, selectedId, selectedSnapshot]);
 
-  const contentCounts = useMemo(
-    () => ({
-      all: papersInPeriod.length,
-      papers: papersInPeriod.filter((p) => !p.isNewsArticle).length,
-      news: papersInPeriod.filter((p) => p.isNewsArticle).length,
-    }),
-    [papersInPeriod]
-  );
+  const contentCountsForScope = useMemo(() => {
+    const scoped =
+      activeCategory === "all"
+        ? papersInPeriod
+        : papersInPeriod.filter((p) => p.category === activeCategory);
+
+    return {
+      all: scoped.length,
+      papers: scoped.filter((p) => !p.isNewsArticle).length,
+      news: scoped.filter((p) => p.isNewsArticle).length,
+    };
+  }, [papersInPeriod, activeCategory]);
 
   const listTitle =
-    activeCategory !== "all"
-      ? `${CATEGORY_LABELS[activeCategory]} 목록`
-      : contentType === "news"
-        ? "뉴스 목록"
-        : contentType === "papers"
-          ? "논문 목록"
-          : "전체 목록";
+    activeCategory !== "all" ? CATEGORY_LABELS[activeCategory] : "전체";
+
+  const listInlineSubLabels = getCategoryInlineSubLabels(activeCategory);
+
+  const categoryContentCounts = useMemo(() => {
+    const empty = () => ({ papers: 0, news: 0 });
+    const result: Record<MainCategory, { papers: number; news: number }> = {
+      "asset-allocation": empty(),
+      "asset-management": empty(),
+      "risk-management": empty(),
+      "performance-evaluation": empty(),
+    };
+
+    papersInPeriod.forEach((paper) => {
+      if (paper.isNewsArticle) {
+        result[paper.category].news++;
+      } else {
+        result[paper.category].papers++;
+      }
+    });
+
+    return result;
+  }, [papersInPeriod]);
+
+  const getCategoryContentMeta = (category: MainCategory) => {
+    const { papers, news } = categoryContentCounts[category];
+    return `논문 ${papers} · 뉴스 ${news}`;
+  };
 
   const counts = useMemo(() => {
     const result: Record<MainCategory | "all", number> = {
@@ -336,32 +361,38 @@ export function Dashboard({
           </button>
           <div className="hidden items-center gap-3 md:flex">
             <Stat
-              label="운용전략"
+              label={CATEGORY_LABELS["asset-allocation"]}
+              subLabels={getCategoryInlineSubLabels("asset-allocation") ?? undefined}
               value={counts["asset-allocation"]}
+              meta={getCategoryContentMeta("asset-allocation")}
               color="text-emerald-400"
               active={activeCategory === "asset-allocation"}
               activeClass="border-emerald-500/50 bg-emerald-500/10 ring-1 ring-emerald-500/30"
               onClick={() => handleStatCategoryClick("asset-allocation")}
             />
             <Stat
-              label="자산운용"
+              label={CATEGORY_LABELS["asset-management"]}
+              subLabels={getCategoryInlineSubLabels("asset-management") ?? undefined}
               value={counts["asset-management"]}
+              meta={getCategoryContentMeta("asset-management")}
               color="text-blue-400"
               active={activeCategory === "asset-management"}
               activeClass="border-blue-500/50 bg-blue-500/10 ring-1 ring-blue-500/30"
               onClick={() => handleStatCategoryClick("asset-management")}
             />
             <Stat
-              label="리스크관리"
+              label={CATEGORY_LABELS["risk-management"]}
               value={counts["risk-management"]}
+              meta={getCategoryContentMeta("risk-management")}
               color="text-amber-400"
               active={activeCategory === "risk-management"}
               activeClass="border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/30"
               onClick={() => handleStatCategoryClick("risk-management")}
             />
             <Stat
-              label="성과평가"
+              label={CATEGORY_LABELS["performance-evaluation"]}
               value={counts["performance-evaluation"]}
+              meta={getCategoryContentMeta("performance-evaluation")}
               color="text-violet-400"
               active={activeCategory === "performance-evaluation"}
               activeClass="border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/30"
@@ -373,8 +404,10 @@ export function Dashboard({
 
       <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-800 px-4 py-2 md:hidden">
         <Stat
-          label="운용전략"
+          label={CATEGORY_LABELS["asset-allocation"]}
+          subLabels={getCategoryInlineSubLabels("asset-allocation") ?? undefined}
           value={counts["asset-allocation"]}
+          meta={getCategoryContentMeta("asset-allocation")}
           color="text-emerald-400"
           compact
           active={activeCategory === "asset-allocation"}
@@ -382,8 +415,10 @@ export function Dashboard({
           onClick={() => handleStatCategoryClick("asset-allocation")}
         />
         <Stat
-          label="자산운용"
+          label={CATEGORY_LABELS["asset-management"]}
+          subLabels={getCategoryInlineSubLabels("asset-management") ?? undefined}
           value={counts["asset-management"]}
+          meta={getCategoryContentMeta("asset-management")}
           color="text-blue-400"
           compact
           active={activeCategory === "asset-management"}
@@ -391,8 +426,9 @@ export function Dashboard({
           onClick={() => handleStatCategoryClick("asset-management")}
         />
         <Stat
-          label="리스크관리"
+          label={CATEGORY_LABELS["risk-management"]}
           value={counts["risk-management"]}
+          meta={getCategoryContentMeta("risk-management")}
           color="text-amber-400"
           compact
           active={activeCategory === "risk-management"}
@@ -400,8 +436,9 @@ export function Dashboard({
           onClick={() => handleStatCategoryClick("risk-management")}
         />
         <Stat
-          label="성과평가"
+          label={CATEGORY_LABELS["performance-evaluation"]}
           value={counts["performance-evaluation"]}
+          meta={getCategoryContentMeta("performance-evaluation")}
           color="text-violet-400"
           compact
           active={activeCategory === "performance-evaluation"}
@@ -465,17 +502,33 @@ export function Dashboard({
               onSubCategoryChange={setActiveSubCategory}
               counts={counts}
             />
-            <ContentTypeFilter
-              activeType={contentType}
-              onTypeChange={setContentType}
-              counts={contentCounts}
-            />
             <PaperSortFilter sort={sort} onSortChange={setSort} />
           </div>
 
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900/40 px-4 py-2.5">
-            <span className="text-sm font-medium text-slate-300">{listTitle}</span>
-            <span className="text-xs text-slate-500">
+          <div className="shrink-0 border-b border-slate-800 bg-slate-900/50 px-4 py-2.5">
+            <ContentTypeTabs
+              activeType={contentType}
+              onTypeChange={setContentType}
+              counts={contentCountsForScope}
+            />
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-800 bg-slate-900/40 px-4 py-2.5">
+            <div className="min-w-0 flex flex-wrap items-baseline gap-x-1.5">
+              <span className="text-sm font-medium text-slate-300">
+                {listTitle}
+              </span>
+              {listInlineSubLabels && (
+                <span className="text-[10px] text-slate-500 sm:text-[11px]">
+                  {listInlineSubLabels}
+                </span>
+              )}
+              <span className="text-[10px] text-slate-500 sm:text-[11px]">
+                {listInlineSubLabels ? "· " : ""}논문 {contentCountsForScope.papers}{" "}
+                · 뉴스 {contentCountsForScope.news}
+              </span>
+            </div>
+            <span className="shrink-0 text-xs text-slate-500">
               {loading
                 ? "불러오는 중..."
                 : `${filteredPapers.length}건 · ${getContentTypeLabel(contentType)} · ${getPaperSortLabel(sort)}`}
@@ -530,6 +583,8 @@ function Stat({
   label,
   value,
   color,
+  meta,
+  subLabels,
   compact = false,
   active = false,
   activeClass = "",
@@ -538,6 +593,8 @@ function Stat({
   label: string;
   value: number;
   color: string;
+  meta?: string;
+  subLabels?: string;
   compact?: boolean;
   active?: boolean;
   activeClass?: string;
@@ -552,7 +609,19 @@ function Stat({
       <p className={`${compact ? "text-sm" : "text-lg"} font-bold ${color}`}>
         {value}
       </p>
-      <p className="text-[10px] text-slate-500">{label}</p>
+      <div className="flex flex-wrap items-baseline justify-center gap-x-1">
+        <span className="text-[10px] text-slate-500">{label}</span>
+        {subLabels && (
+          <span className="text-[9px] text-slate-600 sm:text-[10px]">
+            {subLabels}
+          </span>
+        )}
+      </div>
+      {meta && (
+        <p className="mt-0.5 text-[9px] leading-tight text-slate-600 sm:text-[10px]">
+          {meta}
+        </p>
+      )}
     </>
   );
 
