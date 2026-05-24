@@ -1,4 +1,5 @@
 import { Paper } from "@/types/paper";
+import { normalizePaperTitle } from "./deduplicate-papers";
 
 const PENSION_CONTEXT = [
   "pension",
@@ -126,6 +127,24 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
   /psak no\.?\s*18/i,
   /bpjs ketenagakerjaan/i,
   /accounting reporting at bpjs/i,
+  /exploratory analysis based on the pension service system/i,
+  /pension service system/i,
+  /research on the integrated development path/i,
+  /annex 1b/i,
+  /analysis of the implementation of psak/i,
+  /meulaboh branch/i,
+];
+
+const EXCLUDED_TITLE_PHRASES = [
+  "integrated development path of e commerce driven pension",
+  "exploratory analysis based on the pension service system",
+  "annex 1b amplifying recent scholarly discourses",
+  "positioning of self within research",
+  "sources for pfas research",
+  "sources for pfas",
+  "analysis of the implementation of psak no 18 pension fund accounting",
+  "bpjs ketenagakerjaan meulaboh",
+  "pension fund accounting reporting at bpjs",
 ];
 
 const OFF_TOPIC_TITLE_PATTERNS: RegExp[] = [
@@ -141,8 +160,14 @@ const OFF_TOPIC_TITLE_PATTERNS: RegExp[] = [
   /^sources for pfas\b/i,
 ];
 
+function isExcludedTitlePhrase(title: string): boolean {
+  const normalized = normalizePaperTitle(title);
+  return EXCLUDED_TITLE_PHRASES.some((phrase) => normalized.includes(phrase));
+}
+
 function isOffTopicTitle(title: string): boolean {
   const trimmed = title.trim();
+  if (isExcludedTitlePhrase(trimmed)) return true;
   return OFF_TOPIC_TITLE_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
