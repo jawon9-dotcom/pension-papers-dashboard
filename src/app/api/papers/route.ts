@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchLatestPapers } from "@/lib/openalex";
 import { getCachedPapers, setCachedPapers } from "@/lib/cache";
 import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
-import { filterOutAfricanPapers } from "@/lib/africa-filter";
+import { filterExcludedRegionPapers } from "@/lib/paper-region-filter";
 import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
 import { sleep } from "@/lib/fetch-utils";
@@ -32,7 +32,7 @@ async function finalizePapers(
   period: ReturnType<typeof parsePeriod>
 ) {
   const enriched = enrichPapers(await applyCachedTitles(papers));
-  return mergeCuratedPapers(filterOutAfricanPapers(enriched), period);
+  return mergeCuratedPapers(filterExcludedRegionPapers(enriched), period);
 }
 
 export async function GET(request: NextRequest) {

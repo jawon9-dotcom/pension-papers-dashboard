@@ -18,8 +18,11 @@ import {
   pickRotatedQueries,
 } from "./period";
 import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
-import { filterOutAfricanPapers } from "./africa-filter";
+import { filterExcludedRegionPapers } from "./paper-region-filter";
 import { mergeCuratedPapers } from "./curated-papers";
+import {
+  PRIORITY_REGION_OPENALEX_QUERIES,
+} from "./priority-regions";
 import { appendTpaNewsArticles, fetchTpaNewsArticles } from "./tpa-news";
 
 const OPENALEX_BASE = "https://api.openalex.org/works";
@@ -37,10 +40,17 @@ function interleaveQuerySpecs(
   const academic = specs.filter((spec) => spec.mode === "default");
   const industry = specs.filter((spec) => spec.mode === "industry");
   const tpa = specs.filter((spec) => spec.mode === "tpa");
+  const priority = specs.filter((spec) => spec.mode === "priority");
   const interleaved: OpenAlexQuerySpec[] = [];
-  const maxLen = Math.max(academic.length, industry.length, tpa.length);
+  const maxLen = Math.max(
+    academic.length,
+    industry.length,
+    tpa.length,
+    priority.length
+  );
 
   for (let index = 0; index < maxLen; index++) {
+    if (priority[index]) interleaved.push(priority[index]);
     if (academic[index]) interleaved.push(academic[index]);
     if (industry[index]) interleaved.push(industry[index]);
     if (tpa[index]) interleaved.push(tpa[index]);
@@ -50,6 +60,7 @@ function interleaveQuerySpecs(
 }
 
 const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
+  ...PRIORITY_REGION_OPENALEX_QUERIES,
   { filter: "title.search:pension fund", mode: "default" },
   { filter: "title.search:pension investment", mode: "default" },
   { filter: "title.search:pension asset allocation", mode: "default" },
@@ -135,6 +146,11 @@ const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
 ]);
 
 const CORE_OPENALEX_QUERIES: OpenAlexQuerySpec[] = [
+  { filter: "title.search:calpers pension asset allocation", mode: "priority" },
+  { filter: "title.search:cppib pension portfolio", mode: "priority" },
+  { filter: "title.search:gpif pension asset allocation", mode: "priority" },
+  { filter: "title.search:australian super fund pension", mode: "priority" },
+  { filter: "title.search:new zealand super fund pension", mode: "priority" },
   { filter: "title.search:pension fund", mode: "default" },
   { filter: "title.search:national pension fund", mode: "default" },
   { filter: "title.search:pension investment", mode: "default" },
@@ -421,7 +437,7 @@ export async function fetchLatestPapers(
 
   return enrichPapers(
     appendTpaNewsArticles(
-      mergeCuratedPapers(filterOutAfricanPapers(merged), period),
+      mergeCuratedPapers(filterExcludedRegionPapers(merged), period),
       tpaNewsArticles
     )
   );

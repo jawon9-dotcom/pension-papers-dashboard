@@ -13,6 +13,7 @@ import {
   pickRotatedQueries,
 } from "./period";
 import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
+import { PRIORITY_REGION_CROSSREF_QUERIES } from "./priority-regions";
 
 const CROSSREF_BASE = "https://api.crossref.org/works";
 const CONTACT_EMAIL =
@@ -29,10 +30,17 @@ function interleaveCrossRefQueries(
   const academic = specs.filter((spec) => spec.mode === "default");
   const industry = specs.filter((spec) => spec.mode === "industry");
   const tpa = specs.filter((spec) => spec.mode === "tpa");
+  const priority = specs.filter((spec) => spec.mode === "priority");
   const interleaved: CrossRefQuerySpec[] = [];
-  const maxLen = Math.max(academic.length, industry.length, tpa.length);
+  const maxLen = Math.max(
+    academic.length,
+    industry.length,
+    tpa.length,
+    priority.length
+  );
 
   for (let index = 0; index < maxLen; index++) {
+    if (priority[index]) interleaved.push(priority[index]);
     if (academic[index]) interleaved.push(academic[index]);
     if (industry[index]) interleaved.push(industry[index]);
     if (tpa[index]) interleaved.push(tpa[index]);
@@ -42,6 +50,7 @@ function interleaveCrossRefQueries(
 }
 
 const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
+  ...PRIORITY_REGION_CROSSREF_QUERIES,
   { query: "pension fund asset allocation", mode: "default" },
   { query: "pension fund strategic asset allocation", mode: "default" },
   { query: "pension fund tactical asset allocation", mode: "default" },
@@ -85,6 +94,11 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
 ]);
 
 const CORE_CROSSREF_QUERIES: CrossRefQuerySpec[] = [
+  { query: "calpers pension asset allocation", mode: "priority" },
+  { query: "cppib pension portfolio management", mode: "priority" },
+  { query: "gpif pension asset allocation", mode: "priority" },
+  { query: "australian superannuation pension fund", mode: "priority" },
+  { query: "new zealand super fund pension", mode: "priority" },
   { query: "pension fund asset allocation", mode: "default" },
   { query: "national pension fund investment", mode: "default" },
   { query: "pension fund white paper", mode: "industry" },

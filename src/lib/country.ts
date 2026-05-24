@@ -42,16 +42,16 @@ export const COUNTRY_NAMES_KO: Record<string, string> = {
 };
 
 const TEXT_COUNTRY_PATTERNS: { pattern: RegExp; code: string }[] = [
-  { pattern: /\b(united states|u\.s\.|american|calpers|calstrs|maryland)\b/i, code: "US" },
+  { pattern: /\b(united states|u\.s\.|american|calpers|calstrs|nystrs|texas teachers|public pension fund)\b/i, code: "US" },
   { pattern: /\b(united kingdom|u\.k\.|british|england)\b/i, code: "GB" },
-  { pattern: /\b(canada|cppib|ontario teachers)\b/i, code: "CA" },
+  { pattern: /\b(canada|canadian|cppib|ontario teachers|otpp|cdpq)\b/i, code: "CA" },
   { pattern: /\b(netherlands|dutch|apg|pggm)\b/i, code: "NL" },
   { pattern: /\b(nordic|norway|nbim|norges bank)\b/i, code: "NO" },
   { pattern: /\b(sweden|ap[1-4])\b/i, code: "SE" },
   { pattern: /\b(denmark)\b/i, code: "DK" },
-  { pattern: /\b(australia|australiansuper)\b/i, code: "AU" },
-  { pattern: /\b(new zealand|nz super)\b/i, code: "NZ" },
-  { pattern: /\b(japan|gpif)\b/i, code: "JP" },
+  { pattern: /\b(australia|australian|australiansuper|australian super|superannuation)\b/i, code: "AU" },
+  { pattern: /\b(new zealand|nz super|guardians of new zealand)\b/i, code: "NZ" },
+  { pattern: /\b(japan|japanese|gpif|government pension investment fund)\b/i, code: "JP" },
   { pattern: /\b(korea|south korea|korean|국민연금|한국연금|공적연금)\b/i, code: "KR" },
   { pattern: /\b(switzerland|swiss)\b/i, code: "CH" },
   { pattern: /\b(kenya|kenyan)\b/i, code: "KE" },

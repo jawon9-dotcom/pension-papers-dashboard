@@ -1,6 +1,6 @@
 import { papers as curatedPapers } from "@/data/papers";
 import { Paper } from "@/types/paper";
-import { filterOutAfricanPapers } from "./africa-filter";
+import { filterExcludedRegionPapers } from "./paper-region-filter";
 import { filterPapersByYear, FetchPeriod } from "./period";
 import { enrichPapers } from "./source";
 
@@ -9,7 +9,7 @@ function normalizeTitle(title: string): string {
 }
 
 export function getCuratedPapers(period: FetchPeriod): Paper[] {
-  return filterOutAfricanPapers(
+  return filterExcludedRegionPapers(
     filterPapersByYear(enrichPapers(curatedPapers), period.yearFrom, period.yearTo)
   );
 }
@@ -18,7 +18,7 @@ export function mergeCuratedPapers(
   papers: Paper[],
   period: FetchPeriod
 ): Paper[] {
-  const filtered = filterOutAfricanPapers(papers);
+  const filtered = filterExcludedRegionPapers(papers);
   const existingIds = new Set(filtered.map((paper) => paper.id));
   const existingTitles = new Set(
     filtered.map((paper) => normalizeTitle(paper.title))

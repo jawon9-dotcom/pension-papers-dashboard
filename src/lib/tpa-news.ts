@@ -8,12 +8,14 @@ import {
   hasTaaSignal,
   resolveSaaTaaSubCategory,
 } from "./allocation-signals";
+import { PRIORITY_REGION_NEWS_SEARCHES } from "./priority-regions";
 import { isServerlessEnv } from "./server-env";
 
 const GDELT_DOC_API = "https://api.gdeltproject.org/api/v2/doc/doc";
 const NEWS_API_BASE = "https://newsapi.org/v2/everything";
 
 const PENSION_NEWS_SEARCHES = [
+  ...PRIORITY_REGION_NEWS_SEARCHES,
   "total portfolio approach pension",
   "reference portfolio pension fund",
   "reference portfolio asset owner",

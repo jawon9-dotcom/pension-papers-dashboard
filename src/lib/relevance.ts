@@ -1,6 +1,7 @@
 import { hasSaaSignal, hasTaaSignal } from "./allocation-signals";
+import { hasPriorityRegionSignal } from "./priority-regions";
 
-export type RelevanceMode = "default" | "industry" | "tpa";
+export type RelevanceMode = "default" | "industry" | "tpa" | "priority";
 
 const PENSION_CORE = [
   "pension",
@@ -134,6 +135,7 @@ export function scorePaperRelevance(title: string, abstract: string): number {
   if (hasTrueTpaSignal(title, text)) score += 10;
   if (hasSaaSignal(title, text)) score += 8;
   if (hasTaaSignal(title, text)) score += 8;
+  if (hasPriorityRegionSignal(text)) score += 12;
   if (
     titleLower.includes("benchmark") &&
     (text.includes("pension") || text.includes("manager evaluation"))
@@ -264,6 +266,16 @@ export function isPaperRelevant(
     }
 
     return relevanceScore >= 14;
+  }
+
+  if (mode === "priority") {
+    if (!hasPriorityRegionSignal(text)) return false;
+
+    return (
+      PENSION_CORE.some((kw) => text.includes(kw)) ||
+      INSTITUTIONAL_CORE.some((kw) => text.includes(kw)) ||
+      (FINANCE_CONTEXT.some((kw) => text.includes(kw)) && relevanceScore >= 8)
+    );
   }
 
   if (

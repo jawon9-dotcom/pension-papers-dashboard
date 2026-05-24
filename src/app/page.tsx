@@ -1,7 +1,7 @@
 import { Dashboard } from "@/components/Dashboard";
 import { getCachedPapers } from "@/lib/cache";
 import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
-import { filterOutAfricanPapers } from "@/lib/africa-filter";
+import { filterExcludedRegionPapers } from "@/lib/paper-region-filter";
 import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
 import { DEFAULT_YEAR_FROM, getDefaultYearTo } from "@/lib/period";
@@ -14,7 +14,7 @@ export default async function Home() {
 
   if (cached) {
     const papers = mergeCuratedPapers(
-      filterOutAfricanPapers(
+      filterExcludedRegionPapers(
         enrichPapers(await applyCachedTitles(cached.papers))
       ),
       period
