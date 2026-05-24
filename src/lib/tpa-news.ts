@@ -104,6 +104,17 @@ const FINANCIAL_NEWS_DOMAINS = [
   "wealthmanagement.com",
   "investordaily.com.au",
   "superreview.com.au",
+  "troweprice.com",
+  "blackrock.com",
+  "invesco.com",
+  "cppinvestments.com",
+  "calpers.ca.gov",
+  "marketsgroup.org",
+  "mercer.com",
+  "willistowerswatson.com",
+  "russellinvestments.com",
+  "manulifeim.com",
+  "mackenzieinvestments.com",
 ];
 
 const DOMAIN_POPULARITY: Record<string, number> = {
@@ -220,16 +231,27 @@ function isKoreanTrustedNewsDomain(url: string): boolean {
   );
 }
 
-function isTrustedNewsPublisher(url: string): boolean {
+function isTrustedNewsPublisher(
+  url: string,
+  title = "",
+  description = ""
+): boolean {
   const hostname = normalizeHostname(url);
   if (!hostname) return false;
   if (isBlockedNewsDomain(hostname)) return false;
-  if (hostname === "news.google.com") return true;
-  return isFinancialNewsDomain(url) || isKoreanTrustedNewsDomain(url);
+  if (isFinancialNewsDomain(url) || isKoreanTrustedNewsDomain(url)) return true;
+
+  const text = `${title} ${description}`.toLowerCase();
+  if (hasTrueTpaSignal(title, text)) return true;
+
+  return false;
 }
 
 function isPensionNewsCandidate(title: string, description: string): boolean {
   const text = `${title} ${description}`.toLowerCase();
+
+  if (hasTrueTpaSignal(title, text)) return true;
+
   const hasPensionContext =
     text.includes("pension") ||
     text.includes("retirement") ||
@@ -359,7 +381,7 @@ function mapNewsToPaper(
   const trustUrl = input.publisherUrl || input.url;
   const urlHostname = normalizeHostname(input.url);
   if (urlHostname === "news.google.com" && !input.publisherUrl) return null;
-  if (!isTrustedNewsPublisher(trustUrl)) return null;
+  if (!isTrustedNewsPublisher(trustUrl, title, input.description)) return null;
   if (!isPensionNewsCandidate(title, input.description)) return null;
 
   const { category, subCategory } = categorizeNewsArticle(
@@ -690,11 +712,87 @@ function parseGoogleNewsTitle(rawTitle: string): {
   return { title };
 }
 
+async function fetchSingleGoogleNewsRssQuery(
+  search: { query: string; hl: string; gl: string; ceid: string },
+  period: FetchPeriod
+): Promise<Paper[]> {
+  const rssUrl = `https://news.google.com/rss/search?q=${search.query}&hl=${search.hl}&gl=${search.gl}&ceid=${search.ceid}`;
+  const papers: Paper[] = [];
+
+  try {
+    const res = await fetchWithTimeout(rssUrl, isServerlessEnv() ? 6000 : 12000);
+    if (!res.ok) return papers;
+
+    const xml = await res.text();
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+
+    items.forEach((match, index) => {
+      const item = match[1] ?? "";
+      const rawTitle = decodeXml(
+        item.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? ""
+      );
+      const parsedTitle = parseGoogleNewsTitle(rawTitle);
+      const title = parsedTitle.title;
+      const link = decodeXml(
+        item.match(/<link>([\s\S]*?)<\/link>/)?.[1] ?? ""
+      );
+      const pubDate = item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
+      const source = decodeXml(
+        item.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] ?? ""
+      );
+      const publisherUrl = decodeXml(
+        item.match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? ""
+      );
+
+      if (!title || !link) return;
+
+      const trustHostname = normalizeHostname(publisherUrl || link);
+      const popularityBase = trustHostname
+        ? getDomainPopularity(trustHostname)
+        : 45;
+      const popularityScore = 1200 - index * 15 + popularityBase * 6;
+
+      const paper = mapNewsToPaper(
+        {
+          title,
+          url: link,
+          year: parseRssYear(pubDate),
+          description: title,
+          sourceLabel:
+            parsedTitle.sourceLabel || source || getSourceSiteLabel(link),
+          popularityScore,
+          idPrefix: "news-rss",
+          publisherUrl: publisherUrl || undefined,
+        },
+        period
+      );
+
+      if (paper) papers.push(paper);
+    });
+  } catch (error) {
+    console.warn("Google News RSS query failed:", search.query, error);
+  }
+
+  return papers;
+}
+
 async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
   const searches: Array<{ query: string; hl: string; gl: string; ceid: string }> =
     [
       {
         query: "total+portfolio+approach+pension",
+        hl: "en-US",
+        gl: "US",
+        ceid: "US:en",
+      },
+      {
+        query: "total+portfolio+approach+institutional",
+        hl: "en-US",
+        gl: "US",
+        ceid: "US:en",
+      },
+      {
+        query: "reference+portfolio+pension+fund",
         hl: "en-US",
         gl: "US",
         ceid: "US:en",
@@ -718,12 +816,6 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
         ceid: "US:en",
       },
       {
-        query: "reference+portfolio+pension+fund",
-        hl: "en-US",
-        gl: "US",
-        ceid: "US:en",
-      },
-      {
         query: encodeURIComponent("국민연금+투자+전략"),
         hl: "ko",
         gl: "KR",
@@ -735,97 +827,39 @@ async function fetchGoogleNewsRssTpa(period: FetchPeriod): Promise<Paper[]> {
         gl: "KR",
         ceid: "KR:ko",
       },
-      {
-        query: encodeURIComponent("공적연금+자산운용"),
-        hl: "ko",
-        gl: "KR",
-        ceid: "KR:ko",
-      },
     ];
-  const papers: Paper[] = [];
+
+  const results = await Promise.allSettled(
+    searches.map((search) => fetchSingleGoogleNewsRssQuery(search, period))
+  );
+
   const seenUrls = new Set<string>();
+  const papers: Paper[] = [];
 
-  for (const search of searches) {
-    const rssUrl = `https://news.google.com/rss/search?q=${search.query}&hl=${search.hl}&gl=${search.gl}&ceid=${search.ceid}`;
-
-    try {
-      const res = await fetchWithTimeout(rssUrl);
-      if (!res.ok) continue;
-
-      const xml = await res.text();
-      const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
-
-      items.forEach((match, index) => {
-        const item = match[1] ?? "";
-        const rawTitle = decodeXml(
-          item.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? ""
-        );
-        const parsedTitle = parseGoogleNewsTitle(rawTitle);
-        const title = parsedTitle.title;
-        const link = decodeXml(
-          item.match(/<link>([\s\S]*?)<\/link>/)?.[1] ?? ""
-        );
-        const pubDate = item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
-        const source = decodeXml(
-          item.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] ?? ""
-        );
-        const publisherUrl = decodeXml(
-          item.match(/<source[^>]+url=["']([^"']+)["']/i)?.[1] ?? ""
-        );
-
-        if (!title || !link || seenUrls.has(link)) return;
-        seenUrls.add(link);
-
-        const trustHostname = normalizeHostname(publisherUrl || link);
-        const popularityBase =
-          trustHostname && isKoreanTrustedNewsDomain(publisherUrl || link)
-            ? getDomainPopularity(trustHostname)
-            : getDomainPopularity(new URL(link).hostname);
-
-        const popularityScore = 1200 - index * 15 + popularityBase * 6;
-
-        const paper = mapNewsToPaper(
-          {
-            title,
-            url: link,
-            year: parseRssYear(pubDate),
-            description: title,
-            sourceLabel:
-              parsedTitle.sourceLabel || source || getSourceSiteLabel(link),
-            popularityScore,
-            idPrefix: "news-rss",
-            publisherUrl: publisherUrl || undefined,
-          },
-          period
-        );
-
-        if (paper) papers.push(paper);
-      });
-    } catch (error) {
-      console.warn("Google News RSS pension news fetch failed:", error);
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    for (const paper of result.value) {
+      const urlKey = paper.originalUrl.toLowerCase();
+      if (seenUrls.has(urlKey)) continue;
+      seenUrls.add(urlKey);
+      papers.push(paper);
     }
   }
+
+  papers.sort(
+    (a, b) =>
+      (b.popularityScore ?? 0) - (a.popularityScore ?? 0) || b.year - a.year
+  );
 
   return papers;
 }
 
-export async function fetchTpaNewsArticles(
-  period: FetchPeriod
-): Promise<Paper[]> {
-  const skipGdelt = isServerlessEnv();
-
-  const [gdelt, newsApi, openAlexNews, googleNews] = await Promise.all([
-    skipGdelt ? Promise.resolve([]) : fetchGdeltTpaNews(period),
-    fetchNewsApiTpaNews(period),
-    fetchOpenAlexTpaNews(period),
-    fetchGoogleNewsRssTpa(period),
-  ]);
-
+function mergeFetchedNews(sources: Paper[][]): Paper[] {
   const seenUrls = new Set<string>();
   const seenTitles = new Set<string>();
   const merged: Paper[] = [];
 
-  for (const paper of [...newsApi, ...gdelt, ...googleNews, ...openAlexNews]) {
+  for (const paper of sources.flat()) {
     if (merged.length >= TPA_NEWS_MAX) break;
 
     const urlKey = paper.originalUrl.toLowerCase();
@@ -844,6 +878,29 @@ export async function fetchTpaNewsArticles(
   );
 
   return merged.slice(0, TPA_NEWS_MAX);
+}
+
+export async function fetchTpaNewsArticles(
+  period: FetchPeriod
+): Promise<Paper[]> {
+  const skipGdelt = isServerlessEnv();
+
+  if (skipGdelt) {
+    const [googleNews, newsApi] = await Promise.all([
+      fetchGoogleNewsRssTpa(period),
+      fetchNewsApiTpaNews(period),
+    ]);
+    return mergeFetchedNews([googleNews, newsApi]);
+  }
+
+  const [gdelt, newsApi, openAlexNews, googleNews] = await Promise.all([
+    fetchGdeltTpaNews(period),
+    fetchNewsApiTpaNews(period),
+    fetchOpenAlexTpaNews(period),
+    fetchGoogleNewsRssTpa(period),
+  ]);
+
+  return mergeFetchedNews([googleNews, newsApi, gdelt, openAlexNews]);
 }
 
 export function appendTpaNewsArticles(

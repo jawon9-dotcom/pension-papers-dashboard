@@ -6,8 +6,8 @@ import {
   inferCountryFromText,
 } from "./country";
 import { getSourceSiteLabel, enrichPapers } from "./source";
-import { mapWithDelay, sleep } from "./fetch-utils";
-import { getFetchDelayMs, isServerlessEnv } from "./server-env";
+import { mapWithDelay } from "./fetch-utils";
+import { getFetchDelayMs } from "./server-env";
 import {
   buildYearFetchPlan,
   clampYearRange,
@@ -396,20 +396,16 @@ export async function fetchLatestPapers(
   );
   const maxTotal = getMaxPapersForPeriod(period.yearFrom, period.yearTo);
 
-  const [openalexPapers, crossrefPapers] = await Promise.all([
+  const [openalexPapers, crossrefPapers, tpaNewsArticles] = await Promise.all([
     fetchFromOpenAlex(period),
     fetchFromCrossRef(period),
+    fetchTpaNewsArticles(period),
   ]);
 
   const merged = mergePaperLists(
     [openalexPapers, crossrefPapers],
     maxTotal
   );
-
-  const tpaNewsArticles = await Promise.race([
-    fetchTpaNewsArticles(period),
-    sleep(isServerlessEnv() ? 4000 : 25000).then(() => [] as Paper[]),
-  ]);
 
   return enrichPapers(appendTpaNewsArticles(merged, tpaNewsArticles));
 }

@@ -2,9 +2,13 @@ export function isServerlessEnv(): boolean {
   return Boolean(process.env.VERCEL);
 }
 
-/** Vercel Hobby 함수 제한(10s)을 고려한 fetch 예산 */
+/** Vercel Hobby 함수 제한(10s)을 고려한 fetch 예산 — maxDuration 120s 활용 */
 export function getFetchBudgetMs(): number {
-  return isServerlessEnv() ? 8000 : 110000;
+  return isServerlessEnv() ? 55000 : 110000;
+}
+
+export function getNewsFetchTimeoutMs(): number {
+  return isServerlessEnv() ? 12000 : 30000;
 }
 
 export function getFetchDelayMs(): number {
