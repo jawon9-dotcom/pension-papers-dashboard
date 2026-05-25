@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchLatestPapers } from "@/lib/openalex";
 import { getCachedPapers, setCachedPapers } from "@/lib/cache";
 import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
-import { filterExcludedRegionPapers } from "@/lib/paper-region-filter";
+import { isHealthyPaperCorpus } from "@/lib/cache-health";
 import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
 import { sleep } from "@/lib/fetch-utils";
@@ -29,10 +29,13 @@ function parsePeriod(searchParams: URLSearchParams) {
 
 async function finalizePapers(
   papers: Paper[],
-  period: ReturnType<typeof parsePeriod>
+  period: ReturnType<typeof parsePeriod>,
+  options?: { fromCache?: boolean }
 ) {
   const enriched = enrichPapers(await applyCachedTitles(papers));
-  return mergeCuratedPapers(filterExcludedRegionPapers(enriched), period);
+  return mergeCuratedPapers(enriched, period, {
+    skipIngestFilter: options?.fromCache,
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -43,7 +46,9 @@ export async function GET(request: NextRequest) {
     if (!refresh) {
       const cached = await getCachedPapers(period.yearFrom, period.yearTo);
       if (cached) {
-        const papers = await finalizePapers(cached.papers, period);
+        const papers = await finalizePapers(cached.papers, period, {
+          fromCache: true,
+        });
         return NextResponse.json({
           papers,
           meta: {
@@ -62,6 +67,22 @@ export async function GET(request: NextRequest) {
       sleep(getFetchBudgetMs()).then(() => null),
     ]);
     const papers = await finalizePapers(fetched ?? [], period);
+
+    if (!isHealthyPaperCorpus(papers)) {
+      const fallback = getCuratedPapers(period);
+      return NextResponse.json({
+        papers: fallback,
+        meta: {
+          source: "fallback",
+          count: fallback.length,
+          fetchedAt: new Date().toISOString(),
+          yearFrom: period.yearFrom,
+          yearTo: period.yearTo,
+          message:
+            "논문·뉴스 수집 결과가 비정상적으로 적습니다. 잠시 후 ‘최신 논문 수집’을 다시 시도해 주세요.",
+        },
+      });
+    }
 
     if (papers.length === 0) {
       const fallback = getCuratedPapers(period);

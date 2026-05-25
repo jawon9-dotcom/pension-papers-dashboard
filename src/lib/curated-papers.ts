@@ -15,9 +15,12 @@ export function getCuratedPapers(period: FetchPeriod): Paper[] {
 
 export function mergeCuratedPapers(
   papers: Paper[],
-  period: FetchPeriod
+  period: FetchPeriod,
+  options?: { skipIngestFilter?: boolean }
 ): Paper[] {
-  const filtered = deduplicatePapers(filterExcludedRegionPapers(papers));
+  const filtered = options?.skipIngestFilter
+    ? deduplicatePapers(papers)
+    : deduplicatePapers(filterExcludedRegionPapers(papers));
   const existingIds = new Set(filtered.map((paper) => paper.id));
   const existingTitles = new Set(
     filtered.map((paper) => normalizePaperTitle(paper.title))

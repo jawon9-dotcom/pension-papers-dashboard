@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { isHealthyPaperCorpus } from "./cache-health";
 
 const memoryCache = new Map<string, unknown>();
 
@@ -68,9 +69,9 @@ const PAPERS_TTL_MS = 24 * 60 * 60 * 1000;
 
 function papersCacheKey(yearFrom?: number, yearTo?: number): string {
   if (yearFrom !== undefined && yearTo !== undefined) {
-    return `papers-v23-${yearFrom}-${yearTo}.json`;
+    return `papers-v24-${yearFrom}-${yearTo}.json`;
   }
-  return "papers-v23.json";
+  return "papers-v24.json";
 }
 
 export async function getCachedPapers(
@@ -93,6 +94,10 @@ export async function getCachedPapers(
   const age = Date.now() - new Date(cached.fetchedAt).getTime();
   if (age > PAPERS_TTL_MS) return null;
 
+  if (!isHealthyPaperCorpus(cached.papers)) {
+    return null;
+  }
+
   return cached;
 }
 
@@ -101,6 +106,13 @@ export async function setCachedPapers(
   yearFrom?: number,
   yearTo?: number
 ): Promise<void> {
+  if (!isHealthyPaperCorpus(papers)) {
+    console.warn(
+      `Skipping cache write: unhealthy corpus (${papers.length} papers)`
+    );
+    return;
+  }
+
   await writeCache(papersCacheKey(yearFrom, yearTo), {
     fetchedAt: new Date().toISOString(),
     papers,

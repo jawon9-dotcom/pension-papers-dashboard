@@ -1,7 +1,7 @@
 import { Dashboard } from "@/components/Dashboard";
 import { getCachedPapers } from "@/lib/cache";
 import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
-import { filterExcludedRegionPapers } from "@/lib/paper-region-filter";
+import { isHealthyPaperCorpus } from "@/lib/cache-health";
 import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
 import { DEFAULT_YEAR_FROM, getDefaultYearTo } from "@/lib/period";
@@ -12,12 +12,11 @@ export default async function Home() {
   const period = { yearFrom: DEFAULT_YEAR_FROM, yearTo: getDefaultYearTo() };
   const cached = await getCachedPapers(period.yearFrom, period.yearTo);
 
-  if (cached) {
+  if (cached && isHealthyPaperCorpus(cached.papers)) {
     const papers = mergeCuratedPapers(
-      filterExcludedRegionPapers(
-        enrichPapers(await applyCachedTitles(cached.papers))
-      ),
-      period
+      enrichPapers(await applyCachedTitles(cached.papers)),
+      period,
+      { skipIngestFilter: true }
     );
 
     return (
