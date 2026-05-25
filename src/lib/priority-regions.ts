@@ -1,4 +1,12 @@
-export const PRIORITY_REGION_CODES = new Set(["US", "CA", "AU", "NZ", "JP", "KR"]);
+export const PRIORITY_REGION_CODES = new Set([
+  "US",
+  "CA",
+  "AU",
+  "NZ",
+  "JP",
+  "KR",
+  "SG",
+]);
 
 export const PRIORITY_REGION_TERMS = [
   "calpers",
@@ -25,6 +33,11 @@ export const PRIORITY_REGION_TERMS = [
   "nps fund",
   "korea national pension",
   "국민연금",
+  "singapore pension",
+  "central provident fund",
+  "cpf singapore",
+  "gic singapore",
+  "temasek",
   "united states pension",
   "u.s. pension",
   "us public pension",
@@ -46,6 +59,14 @@ export const PRIORITY_REGION_OPENALEX_QUERIES = [
   { filter: "default.search:united states public pension fund asset allocation", mode: "priority" as const },
   { filter: "default.search:canadian pension fund investment strategy", mode: "priority" as const },
   { filter: "default.search:australian pension fund portfolio management", mode: "priority" as const },
+  { filter: "default.search:singapore pension fund investment", mode: "priority" as const },
+  { filter: "default.search:cpf singapore pension portfolio", mode: "priority" as const },
+  { filter: "default.search:us public pension fund portfolio management", mode: "priority" as const },
+  { filter: "default.search:canadian pension fund asset management", mode: "priority" as const },
+  { filter: "default.search:japan pension fund risk management", mode: "priority" as const },
+  { filter: "default.search:korea national pension fund performance", mode: "priority" as const },
+  { filter: "default.search:australia super fund investment performance", mode: "priority" as const },
+  { filter: "default.search:new zealand super fund portfolio management", mode: "priority" as const },
 ];
 
 export const PRIORITY_REGION_CROSSREF_QUERIES = [
@@ -60,6 +81,15 @@ export const PRIORITY_REGION_CROSSREF_QUERIES = [
   { query: "japan government pension investment fund", mode: "priority" as const },
   { query: "united states public pension fund portfolio", mode: "priority" as const },
   { query: "canadian public pension fund investment", mode: "priority" as const },
+  { query: "singapore pension fund investment", mode: "priority" as const },
+  { query: "cpf singapore pension portfolio", mode: "priority" as const },
+  { query: "us public pension fund portfolio management", mode: "priority" as const },
+  { query: "us public pension fund asset management", mode: "priority" as const },
+  { query: "canadian pension fund asset management", mode: "priority" as const },
+  { query: "japan pension fund risk management", mode: "priority" as const },
+  { query: "korea national pension fund performance", mode: "priority" as const },
+  { query: "australia super fund investment performance", mode: "priority" as const },
+  { query: "new zealand super fund portfolio management", mode: "priority" as const },
 ];
 
 export const PRIORITY_REGION_NEWS_SEARCHES = [
@@ -74,6 +104,15 @@ export const PRIORITY_REGION_NEWS_SEARCHES = [
   "japan pension investment fund",
   "us public pension fund portfolio",
   "canadian pension fund investment",
+  "singapore pension fund investment",
+  "cpf singapore pension portfolio",
+  "us public pension fund asset management",
+  "us public pension fund risk management",
+  "canadian pension fund performance",
+  "japan pension fund portfolio management",
+  "korea national pension fund performance",
+  "australia super fund investment performance",
+  "new zealand super fund portfolio management",
 ];
 
 export function hasPriorityRegionSignal(text: string): boolean {

@@ -14,6 +14,7 @@ import {
 } from "./period";
 import { isPaperRelevant, RelevanceMode, scorePaperRelevance } from "./relevance";
 import { PRIORITY_REGION_CROSSREF_QUERIES } from "./priority-regions";
+import { CORE_INVESTMENT_CROSSREF_QUERIES } from "./core-investment-search";
 import { KOREA_CROSSREF_QUERIES } from "./korea-regions";
 import { GLOBAL_TREND_CROSSREF_QUERIES } from "./global-pension-trends";
 
@@ -61,6 +62,7 @@ const SEARCH_QUERY_SPECS: CrossRefQuerySpec[] = interleaveCrossRefQueries([
   ...GLOBAL_TREND_CROSSREF_QUERIES,
   ...KOREA_CROSSREF_QUERIES,
   ...PRIORITY_REGION_CROSSREF_QUERIES,
+  ...CORE_INVESTMENT_CROSSREF_QUERIES,
   { query: "pension fund asset allocation", mode: "default" },
   { query: "pension fund strategic asset allocation", mode: "default" },
   { query: "pension fund tactical asset allocation", mode: "default" },
@@ -114,6 +116,11 @@ const CORE_CROSSREF_QUERIES: CrossRefQuerySpec[] = [
   { query: "gpif pension asset allocation", mode: "priority" },
   { query: "australian superannuation pension fund", mode: "priority" },
   { query: "new zealand super fund pension", mode: "priority" },
+  { query: "singapore cpf pension investment", mode: "priority" },
+  { query: "pension fund portfolio management", mode: "default" },
+  { query: "pension fund asset management", mode: "default" },
+  { query: "pension fund risk management", mode: "default" },
+  { query: "pension fund performance evaluation", mode: "default" },
   { query: "pension fund asset allocation", mode: "default" },
   { query: "national pension fund investment", mode: "default" },
   { query: "pension fund white paper", mode: "industry" },

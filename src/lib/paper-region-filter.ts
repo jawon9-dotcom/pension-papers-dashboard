@@ -1,6 +1,10 @@
 import { Paper } from "@/types/paper";
 import { resolveCountryCode } from "./country";
 import { isAfricanPaper } from "./africa-filter";
+import {
+  isLatinAmericaPaper,
+  isSouthAsiaPaper,
+} from "./excluded-south-asia-latin-america-filter";
 import { isNonInvestmentPensionPaper, isOffTopicPaper } from "./non-investment-pension-filter";
 
 export const RUSSIA_EASTERN_EUROPE_COUNTRY_CODES = new Set([
@@ -132,6 +136,8 @@ export function isExcludedRegionPaper(
   return (
     isAfricanPaper(paper) ||
     isRussiaEasternEuropePaper(paper) ||
+    isSouthAsiaPaper(paper) ||
+    isLatinAmericaPaper(paper) ||
     isExcludedAsiaPensionPaper(paper)
   );
 }

@@ -57,6 +57,16 @@ const FINANCE_CONTEXT = [
   "white paper",
   "outlook",
   "asset management",
+  "portfolio management",
+  "investment",
+  "stock",
+  "equity",
+  "bond",
+  "fixed income",
+  "risk management",
+  "performance",
+  "performance evaluation",
+  "performance attribution",
 ];
 
 const FUND_MANAGER_DOMAIN_SIGNALS: Array<{ terms: string[]; weight: number }> =
@@ -81,6 +91,14 @@ const FUND_MANAGER_DOMAIN_SIGNALS: Array<{ terms: string[]; weight: number }> =
     {
       terms: ["asset management", "portfolio management", "investment strategy"],
       weight: 9,
+    },
+    {
+      terms: ["stock", "equity", "bond", "fixed income"],
+      weight: 8,
+    },
+    {
+      terms: ["risk management", "performance evaluation", "performance attribution"],
+      weight: 8,
     },
     { terms: ["finance", "financial"], weight: 7 },
     { terms: ["economics", "econometric", "macroeconomic"], weight: 7 },
@@ -163,8 +181,12 @@ export function scorePaperRelevance(title: string, abstract: string): number {
   }
   if (
     text.includes("portfolio management") ||
+    text.includes("asset management") ||
     text.includes("investment strategy") ||
-    text.includes("portfolio policy")
+    text.includes("portfolio policy") ||
+    text.includes("risk management") ||
+    text.includes("performance evaluation") ||
+    text.includes("performance attribution")
   ) {
     score += 6;
   }

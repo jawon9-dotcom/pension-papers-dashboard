@@ -22,6 +22,9 @@ import { filterExcludedRegionPapers } from "./paper-region-filter";
 import { mergeCuratedPapers } from "./curated-papers";
 import { normalizePaperTitle } from "./deduplicate-papers";
 import {
+  CORE_INVESTMENT_OPENALEX_QUERIES,
+} from "./core-investment-search";
+import {
   PRIORITY_REGION_OPENALEX_QUERIES,
 } from "./priority-regions";
 import { KOREA_OPENALEX_QUERIES } from "./korea-regions";
@@ -80,6 +83,7 @@ const OPENALEX_QUERY_SPECS: OpenAlexQuerySpec[] = interleaveQuerySpecs([
   ...GLOBAL_TREND_OPENALEX_QUERIES,
   ...KOREA_OPENALEX_QUERIES,
   ...PRIORITY_REGION_OPENALEX_QUERIES,
+  ...CORE_INVESTMENT_OPENALEX_QUERIES,
   { filter: "title.search:pension fund", mode: "default" },
   { filter: "title.search:pension investment", mode: "default" },
   { filter: "title.search:pension asset allocation", mode: "default" },
@@ -176,6 +180,11 @@ const CORE_OPENALEX_QUERIES: OpenAlexQuerySpec[] = [
   { filter: "title.search:gpif pension asset allocation", mode: "priority" },
   { filter: "title.search:australian super fund pension", mode: "priority" },
   { filter: "title.search:new zealand super fund pension", mode: "priority" },
+  { filter: "title.search:singapore cpf pension investment", mode: "priority" },
+  { filter: "title.search:pension fund portfolio management", mode: "default" },
+  { filter: "title.search:pension fund asset management", mode: "default" },
+  { filter: "title.search:pension fund risk management", mode: "default" },
+  { filter: "title.search:pension fund performance", mode: "default" },
   { filter: "title.search:pension fund", mode: "default" },
   { filter: "title.search:national pension fund", mode: "default" },
   { filter: "title.search:pension investment", mode: "default" },

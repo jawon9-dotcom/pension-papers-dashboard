@@ -12,6 +12,7 @@ import {
   resolveSaaTaaSubCategory,
 } from "./allocation-signals";
 import { PRIORITY_REGION_NEWS_SEARCHES } from "./priority-regions";
+import { CORE_INVESTMENT_NEWS_SEARCHES } from "./core-investment-search";
 import {
   KOREA_GOOGLE_NEWS_RSS_SEARCHES,
   KOREA_NPS_NEWS_SEARCHES,
@@ -45,6 +46,7 @@ const NEWS_API_BASE = "https://newsapi.org/v2/everything";
 const PENSION_NEWS_SEARCHES = [
   ...GLOBAL_PENSION_TREND_NEWS_SEARCHES,
   ...PRIORITY_REGION_NEWS_SEARCHES,
+  ...CORE_INVESTMENT_NEWS_SEARCHES,
   "total portfolio approach pension",
   "reference portfolio pension fund",
   "reference portfolio asset owner",
