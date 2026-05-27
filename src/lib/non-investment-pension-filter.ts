@@ -118,6 +118,14 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
   /financial forecast in korea/i,
   /e-commerce-driven pension/i,
   /e-commerce.*pension industry/i,
+  /e-commerce portfolio management/i,
+  /embedded analytics for e-commerce/i,
+  /micro-agency assessment/i,
+  /micro agency assessment/i,
+  /secretarial field/i,
+  /apparatus competency development/i,
+  /bkpsdm palembang/i,
+  /employee performance in bkpsdm/i,
   /pension industry and health industry/i,
   /integrated development path.*pension/i,
   /positioning of self within research/i,
@@ -145,6 +153,10 @@ const EXCLUDED_TITLE_PHRASES = [
   "analysis of the implementation of psak no 18 pension fund accounting",
   "bpjs ketenagakerjaan meulaboh",
   "pension fund accounting reporting at bpjs",
+  "breaking the micro agency assessment bottleneck",
+  "embedded analytics for e commerce portfolio management",
+  "comparative analysis of the level of education of employees in the secretarial field",
+  "apparatus competency development on employee performance in bkpsdm palembang",
 ];
 
 const OFF_TOPIC_TITLE_PATTERNS: RegExp[] = [

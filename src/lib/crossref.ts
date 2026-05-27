@@ -130,6 +130,21 @@ const CORE_CROSSREF_QUERIES: CrossRefQuerySpec[] = [
   { query: "reference portfolio asset owner", mode: "tpa" },
 ];
 
+function prioritizeCrossRefQueries(
+  specs: CrossRefQuerySpec[]
+): CrossRefQuerySpec[] {
+  const rank = (spec: CrossRefQuerySpec): number => {
+    const query = spec.query.toLowerCase();
+    if (spec.mode === "tpa") return 0;
+    if (query.includes("asset allocation")) return 1;
+    if (query.includes("portfolio management")) return 2;
+    if (query.includes("portfolio")) return 3;
+    return 4;
+  };
+
+  return [...specs].sort((a, b) => rank(a) - rank(b));
+}
+
 function buildCrossRefYearQueries(
   yearIndex: number,
   queriesPerYear: number
@@ -140,7 +155,10 @@ function buildCrossRefYearQueries(
   const extras = SEARCH_QUERY_SPECS.filter(
     (spec) => !coreKeys.has(`${spec.mode}:${spec.query}`)
   );
-  const allQueries = [...CORE_CROSSREF_QUERIES, ...extras];
+  const allQueries = prioritizeCrossRefQueries([
+    ...CORE_CROSSREF_QUERIES,
+    ...extras,
+  ]);
   return pickRotatedQueries(allQueries, yearIndex, queriesPerYear);
 }
 

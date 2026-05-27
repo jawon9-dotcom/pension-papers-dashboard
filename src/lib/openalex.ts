@@ -213,6 +213,21 @@ const CORE_OPENALEX_QUERIES: OpenAlexQuerySpec[] = [
   },
 ];
 
+function prioritizeOpenAlexQueries(
+  specs: OpenAlexQuerySpec[]
+): OpenAlexQuerySpec[] {
+  const rank = (spec: OpenAlexQuerySpec): number => {
+    const filter = spec.filter.toLowerCase();
+    if (spec.mode === "tpa") return 0;
+    if (filter.includes("asset allocation")) return 1;
+    if (filter.includes("portfolio management")) return 2;
+    if (filter.includes("portfolio")) return 3;
+    return 4;
+  };
+
+  return [...specs].sort((a, b) => rank(a) - rank(b));
+}
+
 function buildYearQueries(
   yearIndex: number,
   queriesPerYear: number
@@ -223,7 +238,10 @@ function buildYearQueries(
   const extras = OPENALEX_QUERY_SPECS.filter(
     (spec) => !coreKeys.has(`${spec.mode}:${spec.filter}`)
   );
-  const allQueries = [...CORE_OPENALEX_QUERIES, ...extras];
+  const allQueries = prioritizeOpenAlexQueries([
+    ...CORE_OPENALEX_QUERIES,
+    ...extras,
+  ]);
   return pickRotatedQueries(allQueries, yearIndex, queriesPerYear);
 }
 

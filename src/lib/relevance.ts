@@ -370,5 +370,19 @@ export function isPaperRelevant(
     return INSTITUTIONAL_CORE.some((kw) => text.includes(kw));
   }
 
+  const hasInstitutionalPensionContext =
+    PENSION_CORE.some((kw) => text.includes(kw)) ||
+    INSTITUTIONAL_CORE.some((kw) => text.includes(kw));
+
+  if (
+    !hasInstitutionalPensionContext &&
+    (text.includes("portfolio management") ||
+      text.includes("asset allocation") ||
+      text.includes("portfolio construction") ||
+      text.includes("investment strategy"))
+  ) {
+    return false;
+  }
+
   return relevanceScore >= 16;
 }
