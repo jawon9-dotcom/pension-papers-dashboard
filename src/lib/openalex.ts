@@ -6,8 +6,8 @@ import {
   inferCountryFromText,
 } from "./country";
 import { getSourceSiteLabel, enrichPapers } from "./source";
-import { sleep } from "./fetch-utils";
-import { getNewsFetchTimeoutMs } from "./server-env";
+import { mapWithDelay } from "./fetch-utils";
+import { getFetchDelayMs } from "./server-env";
 import {
   buildYearFetchPlan,
   clampYearRange,
@@ -213,21 +213,6 @@ const CORE_OPENALEX_QUERIES: OpenAlexQuerySpec[] = [
   },
 ];
 
-function prioritizeOpenAlexQueries(
-  specs: OpenAlexQuerySpec[]
-): OpenAlexQuerySpec[] {
-  const rank = (spec: OpenAlexQuerySpec): number => {
-    const filter = spec.filter.toLowerCase();
-    if (spec.mode === "tpa") return 0;
-    if (filter.includes("asset allocation")) return 1;
-    if (filter.includes("portfolio management")) return 2;
-    if (filter.includes("portfolio")) return 3;
-    return 4;
-  };
-
-  return [...specs].sort((a, b) => rank(a) - rank(b));
-}
-
 function buildYearQueries(
   yearIndex: number,
   queriesPerYear: number
@@ -238,11 +223,13 @@ function buildYearQueries(
   const extras = OPENALEX_QUERY_SPECS.filter(
     (spec) => !coreKeys.has(`${spec.mode}:${spec.filter}`)
   );
-  const allQueries = prioritizeOpenAlexQueries([
-    ...CORE_OPENALEX_QUERIES,
-    ...extras,
-  ]);
-  return pickRotatedQueries(allQueries, yearIndex, queriesPerYear);
+  const rotatedExtras = pickRotatedQueries(
+    extras,
+    yearIndex,
+    Math.max(0, queriesPerYear - CORE_OPENALEX_QUERIES.length)
+  );
+
+  return [...CORE_OPENALEX_QUERIES, ...rotatedExtras];
 }
 
 interface OpenAlexWork {
@@ -392,13 +379,14 @@ async function fetchFromOpenAlex(period: FetchPeriod): Promise<Paper[]> {
     const filters = querySpecs.map(
       (spec) => `${spec.filter},publication_year:${year}`
     );
-    const results = await Promise.all(
-      filters.map((filter, queryIndex) =>
+    const results = await mapWithDelay(
+      filters,
+      (filter, queryIndex) =>
         fetchOpenAlexFilter(filter, perPage).then((works) => ({
           works,
           mode: querySpecs[queryIndex]?.mode ?? "default",
-        }))
-      )
+        })),
+      getFetchDelayMs()
     );
 
     for (const batch of results) {
@@ -468,7 +456,7 @@ function mergePaperLists(
   return merged;
 }
 
-/** OpenAlex + CrossRef 항상 병합 수집 (뉴스는 별도 타임아웃) */
+/** OpenAlex + CrossRef 항상 병합 수집 */
 export async function fetchLatestPapers(
   options?: Partial<FetchPeriod>
 ): Promise<Paper[]> {
@@ -478,33 +466,25 @@ export async function fetchLatestPapers(
   );
   const maxTotal = getMaxPapersForPeriod(period.yearFrom, period.yearTo);
 
-  const [openalexPapers, crossrefPapers] = await Promise.all([
+  const [openalexPapers, crossrefPapers, tpaNewsArticles, performanceNewsArticles] =
+    await Promise.all([
     fetchFromOpenAlex(period),
     fetchFromCrossRef(period),
+    fetchTpaNewsArticles(period),
+    fetchPerformanceEvaluationNewsArticles(period),
   ]);
 
-  const merged = mergePaperLists([openalexPapers, crossrefPapers], maxTotal);
-  const basePapers = mergeCuratedPapers(
-    filterExcludedRegionPapers(merged),
-    period
+  const merged = mergePaperLists(
+    [openalexPapers, crossrefPapers],
+    maxTotal
   );
-
-  const newsTimeoutMs = getNewsFetchTimeoutMs();
-  const emptyNews = Promise.resolve([] as Paper[]);
-  const [tpaNewsArticles, performanceNewsArticles] = await Promise.all([
-    Promise.race([
-      fetchTpaNewsArticles(period),
-      sleep(newsTimeoutMs).then(() => [] as Paper[]),
-    ]).catch(() => [] as Paper[]),
-    Promise.race([
-      fetchPerformanceEvaluationNewsArticles(period),
-      sleep(newsTimeoutMs).then(() => [] as Paper[]),
-    ]).catch(() => [] as Paper[]),
-  ]);
 
   return enrichPapers(
     appendTpaNewsArticles(
-      appendTpaNewsArticles(basePapers, tpaNewsArticles),
+      appendTpaNewsArticles(
+        mergeCuratedPapers(filterExcludedRegionPapers(merged), period),
+        tpaNewsArticles
+      ),
       performanceNewsArticles
     )
   );

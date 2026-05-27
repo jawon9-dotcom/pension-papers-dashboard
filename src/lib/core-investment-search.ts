@@ -4,16 +4,6 @@ export const CORE_INVESTMENT_OPENALEX_QUERIES: Array<{
   filter: string;
   mode: RelevanceMode;
 }> = [
-  { filter: "default.search:total portfolio approach pension fund", mode: "tpa" },
-  { filter: "title.search:total portfolio approach pension", mode: "tpa" },
-  { filter: "default.search:reference portfolio pension fund", mode: "tpa" },
-  { filter: "title.search:reference portfolio pension fund", mode: "tpa" },
-  { filter: "default.search:strategic asset allocation pension fund", mode: "default" },
-  { filter: "default.search:tactical asset allocation pension fund", mode: "default" },
-  { filter: "title.search:strategic asset allocation pension fund", mode: "default" },
-  { filter: "title.search:tactical asset allocation pension fund", mode: "default" },
-  { filter: "title.search:pension fund asset allocation", mode: "default" },
-  { filter: "default.search:pension fund asset allocation", mode: "default" },
   { filter: "default.search:pension fund portfolio management", mode: "default" },
   { filter: "default.search:pension fund asset management", mode: "default" },
   { filter: "default.search:pension fund investment strategy", mode: "default" },
@@ -38,12 +28,6 @@ export const CORE_INVESTMENT_CROSSREF_QUERIES: Array<{
   query: string;
   mode: RelevanceMode;
 }> = [
-  { query: "total portfolio approach pension fund", mode: "tpa" },
-  { query: "reference portfolio pension fund", mode: "tpa" },
-  { query: "strategic asset allocation pension fund", mode: "default" },
-  { query: "tactical asset allocation pension fund", mode: "default" },
-  { query: "pension fund asset allocation", mode: "default" },
-  { query: "public pension strategic asset allocation", mode: "default" },
   { query: "pension fund portfolio management", mode: "default" },
   { query: "pension fund asset management", mode: "default" },
   { query: "pension fund investment strategy", mode: "default" },

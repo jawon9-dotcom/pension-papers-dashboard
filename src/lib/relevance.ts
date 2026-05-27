@@ -1,4 +1,3 @@
-import { Paper } from "@/types/paper";
 import { hasSaaSignal, hasTaaSignal } from "./allocation-signals";
 import { hasPriorityRegionSignal } from "./priority-regions";
 import { hasKoreaPensionSignal } from "./korea-regions";
@@ -291,12 +290,6 @@ export function isPaperRelevant(
   }
 
   if (mode === "industry") {
-    const hasContext =
-      PENSION_CORE.some((kw) => text.includes(kw)) ||
-      INSTITUTIONAL_CORE.some((kw) => text.includes(kw));
-
-    if (!hasContext) return false;
-
     if (INSTITUTIONAL_CORE.some((kw) => text.includes(kw))) {
       return FINANCE_CONTEXT.some((kw) => text.includes(kw));
     }
@@ -355,7 +348,8 @@ export function isPaperRelevant(
       titleLower.includes("factor-based asset allocation") ||
       titleLower.includes("factor based asset allocation")) &&
     (text.includes("pension") ||
-      INSTITUTIONAL_CORE.some((kw) => text.includes(kw)))
+      text.includes("portfolio") ||
+      relevanceScore >= 10)
   ) {
     return true;
   }
@@ -376,38 +370,5 @@ export function isPaperRelevant(
     return INSTITUTIONAL_CORE.some((kw) => text.includes(kw));
   }
 
-  const hasInstitutionalPensionContext =
-    PENSION_CORE.some((kw) => text.includes(kw)) ||
-    INSTITUTIONAL_CORE.some((kw) => text.includes(kw));
-
-  if (
-    !hasInstitutionalPensionContext &&
-    (text.includes("portfolio management") ||
-      text.includes("asset allocation") ||
-      text.includes("portfolio construction") ||
-      text.includes("investment strategy"))
-  ) {
-    return false;
-  }
-
-  if (!hasInstitutionalPensionContext) {
-    return false;
-  }
-
   return relevanceScore >= 16;
-}
-
-export function filterStoredAcademicPapers<T extends Paper>(
-  papers: T[]
-): T[] {
-  return papers.filter((paper) => {
-    if (paper.isNewsArticle) return true;
-
-    return isPaperRelevant(
-      paper.title,
-      paper.abstract ?? "",
-      "default",
-      paper.publicationType
-    );
-  });
 }

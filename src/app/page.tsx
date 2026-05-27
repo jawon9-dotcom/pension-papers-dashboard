@@ -3,7 +3,6 @@ import { getCachedPapers } from "@/lib/cache";
 import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
 import { isHealthyPaperCorpus } from "@/lib/cache-health";
 import { applyCachedTitles } from "@/lib/title-translator";
-import { filterStoredAcademicPapers } from "@/lib/relevance";
 import { enrichPapers } from "@/lib/source";
 import { DEFAULT_YEAR_FROM, getDefaultYearTo } from "@/lib/period";
 
@@ -15,10 +14,9 @@ export default async function Home() {
 
   if (cached && isHealthyPaperCorpus(cached.papers)) {
     const papers = mergeCuratedPapers(
-      filterStoredAcademicPapers(
-        enrichPapers(await applyCachedTitles(cached.papers))
-      ),
-      period
+      enrichPapers(await applyCachedTitles(cached.papers)),
+      period,
+      { skipIngestFilter: true }
     );
 
     return (
