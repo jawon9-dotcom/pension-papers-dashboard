@@ -21,5 +21,5 @@ export function getCrossRefFetchDelayMs(): number {
 
 export function getServerlessQueriesPerYear(defaultCount: number): number {
   if (!isServerlessEnv()) return defaultCount;
-  return Math.min(defaultCount, 6);
+  return Math.min(defaultCount, 10);
 }

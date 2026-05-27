@@ -1,6 +1,6 @@
 import { Paper } from "@/types/paper";
 
-export const PERFORMANCE_NEWS_MAX = 30;
+export const PERFORMANCE_NEWS_MAX = 10;
 export const PERFORMANCE_NEWS_GLOBAL_RATIO = 4;
 export const PERFORMANCE_NEWS_KOREA_RATIO = 1;
 export const MAX_PERFORMANCE_NEWS_PER_FUND = 2;

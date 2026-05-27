@@ -1,8 +1,8 @@
 export const DEFAULT_YEAR_FROM = 2022;
 export const PAPERS_PER_YEAR = 50;
 export const MAX_PAPERS_CAP = 500;
-export const TPA_NEWS_MAX = 80;
-export const MAX_KOREA_DOMESTIC_NEWS = 18;
+export const TPA_NEWS_MAX = 35;
+export const MAX_KOREA_DOMESTIC_NEWS = 6;
 
 export function getDefaultYearTo(): number {
   return new Date().getFullYear();
@@ -38,12 +38,12 @@ export function buildYearFetchPlan(
 } {
   const years = listYearsInRange(yearFrom, yearTo);
   const maxTotal = getMaxPapersForPeriod(yearFrom, yearTo);
-  const defaultQueriesPerYear = Math.min(queryCount, years.length <= 3 ? 10 : 8);
-  const queriesPerYear = Math.min(defaultQueriesPerYear, 6);
+  const defaultQueriesPerYear = Math.min(queryCount, years.length <= 3 ? 12 : 10);
+  const queriesPerYear = Math.min(defaultQueriesPerYear, 10);
   const targetPerYear = Math.ceil(maxTotal / years.length);
   const perPage = Math.max(
-    10,
-    Math.min(25, Math.ceil(targetPerYear / queriesPerYear))
+    12,
+    Math.min(30, Math.ceil(targetPerYear / queriesPerYear))
   );
 
   return { years, maxTotal, queriesPerYear, perPage };
