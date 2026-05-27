@@ -9,9 +9,9 @@ export interface PaperSortState {
   direction: PaperSortDirection;
 }
 
-/** 논문: 인용순 → 최신순 기본 */
+/** 기본: 최신순 */
 export const DEFAULT_PAPER_SORT: PaperSortState = {
-  field: "citations",
+  field: "newest",
   direction: "desc",
 };
 
