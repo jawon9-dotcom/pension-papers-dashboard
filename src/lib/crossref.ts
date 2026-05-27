@@ -140,13 +140,8 @@ function buildCrossRefYearQueries(
   const extras = SEARCH_QUERY_SPECS.filter(
     (spec) => !coreKeys.has(`${spec.mode}:${spec.query}`)
   );
-  const rotatedExtras = pickRotatedQueries(
-    extras,
-    yearIndex,
-    Math.max(0, queriesPerYear - CORE_CROSSREF_QUERIES.length)
-  );
-
-  return [...CORE_CROSSREF_QUERIES, ...rotatedExtras];
+  const allQueries = [...CORE_CROSSREF_QUERIES, ...extras];
+  return pickRotatedQueries(allQueries, yearIndex, queriesPerYear);
 }
 
 interface CrossRefAuthor {
