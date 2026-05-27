@@ -126,6 +126,13 @@ const OFF_TOPIC_PATTERNS: RegExp[] = [
   /apparatus competency development/i,
   /bkpsdm palembang/i,
   /employee performance in bkpsdm/i,
+  /mobile network/i,
+  /wireless network/i,
+  /guard channel scheme/i,
+  /long short-term memory network/i,
+  /mining compan/i,
+  /return on asset.*mining/i,
+  /operating cash flow.*mining/i,
   /pension industry and health industry/i,
   /integrated development path.*pension/i,
   /positioning of self within research/i,
@@ -157,6 +164,8 @@ const EXCLUDED_TITLE_PHRASES = [
   "embedded analytics for e commerce portfolio management",
   "comparative analysis of the level of education of employees in the secretarial field",
   "apparatus competency development on employee performance in bkpsdm palembang",
+  "proactive resource allocation in mobile networks",
+  "effect of return on asset operating cash flows and earning on return of shares",
 ];
 
 const OFF_TOPIC_TITLE_PATTERNS: RegExp[] = [

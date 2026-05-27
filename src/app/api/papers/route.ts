@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchLatestPapers } from "@/lib/openalex";
 import { getCachedPapers, setCachedPapers } from "@/lib/cache";
 import { getCuratedPapers, mergeCuratedPapers } from "@/lib/curated-papers";
+import { filterStoredAcademicPapers } from "@/lib/relevance";
 import { hasLivePaperCorpus, isHealthyPaperCorpus } from "@/lib/cache-health";
 import { applyCachedTitles } from "@/lib/title-translator";
 import { enrichPapers } from "@/lib/source";
@@ -29,13 +30,10 @@ function parsePeriod(searchParams: URLSearchParams) {
 
 async function finalizePapers(
   papers: Paper[],
-  period: ReturnType<typeof parsePeriod>,
-  options?: { fromCache?: boolean }
+  period: ReturnType<typeof parsePeriod>
 ) {
   const enriched = enrichPapers(await applyCachedTitles(papers));
-  return mergeCuratedPapers(enriched, period, {
-    skipIngestFilter: options?.fromCache,
-  });
+  return mergeCuratedPapers(filterStoredAcademicPapers(enriched), period);
 }
 
 async function fetchPapersWithinBudget(
@@ -85,9 +83,7 @@ export async function GET(request: NextRequest) {
     if (!refresh) {
       const cached = await getCachedPapers(period.yearFrom, period.yearTo);
       if (cached) {
-        const papers = await finalizePapers(cached.papers, period, {
-          fromCache: true,
-        });
+        const papers = await finalizePapers(cached.papers, period);
         return NextResponse.json({
           papers,
           meta: {
